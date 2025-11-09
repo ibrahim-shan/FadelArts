@@ -94,7 +94,17 @@ export default function ImageUploader({
         if (!it.file) return;
         try {
           const safeName = it.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-          const key = `${pathPrefix}/${Date.now()}_${idx}_${safeName}`;
+          // Sanitize pathPrefix: remove leading slashes and any duplicated bucket segment
+          let prefix = (pathPrefix || "").replace(/^\/+/, "");
+          if (prefix.startsWith(`${bucket}/`)) {
+            prefix = prefix.slice(bucket.length + 1);
+          }
+          const key = `${
+            prefix ? prefix + "/" : ""
+          }${Date.now()}_${idx}_${safeName}`;
+          try {
+            
+          } catch {}
           updateItem(it, { status: "uploading", progress: 10 });
           const { error } = await supabase.storage
             .from(bucket)
@@ -108,7 +118,13 @@ export default function ImageUploader({
           const url = data.publicUrl;
           newlyUploaded.push(url);
           updateItem(it, { status: "done", progress: 100, url, path: key });
+          try {
+            
+          } catch {}
         } catch (e: any) {
+          try {
+            
+          } catch {}
           updateItem(it, { status: "error", error: String(e?.message || e) });
         }
       })
