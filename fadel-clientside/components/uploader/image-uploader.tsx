@@ -30,7 +30,7 @@ export default function ImageUploader({
   value,
   onChange,
   onUploaded,
-  bucket = "products",
+  bucket = (process.env.NEXT_PUBLIC_SUPABASE_BUCKET as string) ?? "products",
   pathPrefix = `uploads/${Date.now()}`,
   multiple = true,
   accept = "image/*",
@@ -103,7 +103,6 @@ export default function ImageUploader({
             prefix ? prefix + "/" : ""
           }${Date.now()}_${idx}_${safeName}`;
           try {
-            
           } catch {}
           updateItem(it, { status: "uploading", progress: 10 });
           const { error } = await supabase.storage
@@ -119,11 +118,9 @@ export default function ImageUploader({
           newlyUploaded.push(url);
           updateItem(it, { status: "done", progress: 100, url, path: key });
           try {
-            
           } catch {}
         } catch (e: any) {
           try {
-            
           } catch {}
           updateItem(it, { status: "error", error: String(e?.message || e) });
         }
@@ -183,7 +180,7 @@ export default function ImageUploader({
       </div>
 
       {!!items.length && (
-        <ul className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <ul className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3">
           {items.map((it, i) => (
             <li
               key={`${it.name}-${i}`}

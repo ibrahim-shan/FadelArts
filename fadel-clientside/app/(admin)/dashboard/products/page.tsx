@@ -52,6 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase"; // *** 1. IMPORT SUPABASE ***
 
 type Product = {
   _id: string;
@@ -61,6 +62,14 @@ type Product = {
   price: number;
   inventory?: number;
   published?: boolean;
+  images?: string[];
+  shortDescription?: string;
+  description?: string;
+  categories?: string[];
+  variants?: { name: string; values: string[] }[];
+  sku?: string;
+  barcode?: string;
+  year?: number;
 };
 
 export default function ProductsPage() {
@@ -73,7 +82,9 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const [editItem, setEditItem] = useState<Product | null>(null);
+  const [viewItem, setViewItem] = useState<Product | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -84,6 +95,10 @@ export default function ProductsPage() {
   const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
+
+  // *** 2. ADD NEW STATE FOR STAGED FILES (FOR CREATE DIALOG) ***
+  const [createImageFiles, setCreateImageFiles] = useState<File[]>([]);
+
   const [categories, setCategories] = useState<string[]>([]);
   const [variants, setVariants] = useState<
     { name: string; values: string[] }[]
@@ -101,6 +116,13 @@ export default function ProductsPage() {
     () => Math.max(1, Math.ceil(total / pageSize)),
     [total]
   );
+
+  // Lookup map for category id -> name for display in View dialog
+  const categoryNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    allCategories.forEach((c) => m.set(c._id, c.name));
+    return m;
+  }, [allCategories]);
 
   async function fetchData(signal?: AbortSignal) {
     setLoading(true);
@@ -167,6 +189,7 @@ export default function ProductsPage() {
     setShortDescription("");
     setDescription("");
     setImages([]);
+    setCreateImageFiles([]); // *** 3. RESET STAGED FILES ***
     setCategories([]);
     setVariants([]);
     setYear("");
@@ -187,6 +210,18 @@ export default function ProductsPage() {
     setQuantity(typeof p.inventory === "number" ? String(p.inventory) : "");
   };
 
+  // *** 4. ADD HANDLERS FOR STAGING/REMOVING FILES ***
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setCreateImageFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    }
+  };
+
+  const handleImageRemove = (index: number) => {
+    setCreateImageFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+  };
+
   async function createProduct() {
     // Client-side required validation
     if (!title.trim()) return setFormError("Title is required");
@@ -196,16 +231,54 @@ export default function ProductsPage() {
       return setFormError("Short description is required");
     if (!description.trim())
       return setFormError("Full description is required");
-    if (images.length === 0)
+
+    // *** 5. MODIFY createProduct TO UPLOAD FILES FIRST ***
+
+    // Use `createImageFiles` for validation
+    if (createImageFiles.length === 0) {
       return setFormError("At least one image is required");
+    }
     if (!year || Number.isNaN(Number(year)))
       return setFormError("Year is required");
     if (!quantity || Number.isNaN(Number(quantity)))
       return setFormError("Quantity is required");
     if (categories.length === 0)
       return setFormError("Select at least one category");
+
     setFormError(null);
+    setLoading(true); // Use loading state for button
+
+    let uploadedImageUrls: string[] = [];
+    const pathPrefix = `${Date.now()}`;
+    const bucket = "products";
+
     try {
+      // 2. Upload all files from `createImageFiles`
+      const uploadPromises = createImageFiles.map(async (file, idx) => {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const key = `${pathPrefix}/${Date.now()}_${idx}_${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(key, file, {
+            cacheControl: "3600",
+            upsert: true,
+            contentType: file.type,
+          });
+
+        if (uploadError) {
+          throw new Error(
+            `Failed to upload ${file.name}: ${uploadError.message}`
+          );
+        }
+
+        const { data } = supabase.storage.from(bucket).getPublicUrl(key);
+        return data.publicUrl;
+      });
+
+      uploadedImageUrls = await Promise.all(uploadPromises);
+
+      // 3. All images are uploaded, now create the product in the DB
       const res = await fetch(`${apiBase}/api/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -216,7 +289,7 @@ export default function ProductsPage() {
           price: Number(price),
           shortDescription,
           description,
-          images,
+          images: uploadedImageUrls, // Send the new URLs
           categories,
           variants,
           year: year ? Number(year) : undefined,
@@ -224,14 +297,21 @@ export default function ProductsPage() {
           published: true,
         }),
       });
+
       const data = await res.json();
-      if (!res.ok || !data?.ok)
-        throw new Error(data?.error || "Failed to create");
+      if (!res.ok || !data?.ok) {
+        // In a real app, you might want to delete the uploaded images here
+        throw new Error(data?.error || "Failed to create product in database");
+      }
+
+      // 4. Success
       setCreateOpen(false);
-      resetCreate();
+      resetCreate(); // This will clear createImageFiles
       await fetchData();
     } catch (e: any) {
-      alert(e?.message || "Failed to create product");
+      setFormError(e?.message || "Failed to create product");
+    } finally {
+      setLoading(false); // Hide loading state
     }
   }
 
@@ -248,7 +328,7 @@ export default function ProductsPage() {
           price: Number(price),
           shortDescription,
           description,
-          images,
+          images, // Edit dialog still uses the 'images' state (string[])
           categories,
           variants,
           year: year ? Number(year) : undefined,
@@ -269,6 +349,7 @@ export default function ProductsPage() {
   return (
     <>
       <div className="space-y-6">
+        {/* ... (rest of the table and list UI, no changes needed here) ... */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <Input
             placeholder="Search products..."
@@ -279,7 +360,7 @@ export default function ProductsPage() {
             }}
             className="w-full sm:w-[280px]"
           />
-          <Button onClick={() => setCreateOpen(true)}>Add Product</Button>
+          <Button onClick={() => { resetCreate(); setEditItem(null); setCreateOpen(true); }}>Add Product</Button>
         </div>
 
         <div className="rounded-xl border overflow-hidden">
@@ -313,14 +394,15 @@ export default function ProductsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button asChild variant="outline" size="sm">
-                      <Link
-                        href={`/product/${p.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View
-                      </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setViewItem(p);
+                        setViewOpen(true);
+                      }}
+                    >
+                      View
                     </Button>
                     <Button
                       variant="outline"
@@ -393,14 +475,17 @@ export default function ProductsPage() {
           setCreateOpen(v);
         }}
       >
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>New Product</DialogTitle>
             <DialogDescription>
               Here You Can Create New Product
             </DialogDescription>
           </DialogHeader>
-          <Tabs defaultValue="details" className="w-full">
+          <Tabs
+            defaultValue="details"
+            className="w-full max-h-[70vh] overflow-y-auto pr-1 data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch"
+          >
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="images">Images</TabsTrigger>
@@ -409,6 +494,7 @@ export default function ProductsPage() {
             </TabsList>
 
             <TabsContent value="details" className="pt-4">
+              {/* ... (Details tab content is unchanged) ... */}
               <div className="grid gap-4">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
@@ -444,27 +530,53 @@ export default function ProductsPage() {
               </div>
             </TabsContent>
 
+            {/* *** 6. REPLACE THE IMAGES TAB CONTENT *** */}
             <TabsContent value="images" className="pt-4">
               <div>
-                <Label className="mb-1 block text-sm">Images</Label>
-                <ImageUploader
-                  value={images}
-                  onChange={setImages}
-                  bucket="products"
-                  pathPrefix={`${Date.now()}`}
+                <Label className="mb-1 block text-sm">Upload Images</Label>
+                <Input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="mb-4"
+                  disabled={loading}
                 />
-                {!!images.length && (
+                <p className="text-xs text-muted-foreground mb-4">
+                  Images will be staged here. They will be uploaded when you
+                  click "Create".
+                </p>
+                {!!createImageFiles.length && (
                   <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                    {images.map((u, i) => (
-                      <div
-                        key={i}
-                        className="relative aspect-[4/3] overflow-hidden rounded"
-                      >
-                        <img
-                          src={u}
-                          alt={`Image ${i + 1}`}
-                          className="w-full h-full object-cover"
-                        />
+                    {createImageFiles.map((file, i) => (
+                      <div key={i} className="relative group">
+                        <div className="relative aspect-4/3 overflow-hidden rounded border">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${file.name}`}
+                            className="w-full h-full object-cover"
+                            onLoad={(e) =>
+                              URL.revokeObjectURL(e.currentTarget.src)
+                            }
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon-sm"
+                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                          onClick={() => handleImageRemove(i)}
+                          aria-label="Remove image"
+                          disabled={loading}
+                        >
+                          ×
+                        </Button>
+                        <p
+                          className="text-xs truncate text-muted-foreground mt-1"
+                          title={file.name}
+                        >
+                          {file.name}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -473,6 +585,7 @@ export default function ProductsPage() {
             </TabsContent>
 
             <TabsContent value="info" className="pt-4">
+              {/* ... (Info tab content is unchanged) ... */}
               <div className="grid gap-4">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>
@@ -524,6 +637,7 @@ export default function ProductsPage() {
             </TabsContent>
 
             <TabsContent value="org" className="pt-4">
+              {/* ... (Organization tab content is unchanged) ... */}
               <div className="grid gap-6">
                 <div>
                   <Label className="mb-1 block text-sm">Categories</Label>
@@ -607,19 +721,166 @@ export default function ProductsPage() {
               </div>
             </TabsContent>
           </Tabs>
+          {/* *** 7. UPDATE DIALOG FOOTER FOR ERROR AND LOADING STATE *** */}
           <DialogFooter>
             {formError && (
               <p className="text-destructive text-sm mr-auto">{formError}</p>
             )}
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" disabled={loading}>
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={createProduct}>Create</Button>
+            <Button onClick={createProduct} disabled={loading}>
+              {loading ? "Creating..." : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Product Dialog */}
+      {/* View Product Dialog */}
+      <Dialog
+        open={viewOpen}
+        onOpenChange={(v) => {
+          if (!v) setViewItem(null);
+          setViewOpen(v);
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Product Details</DialogTitle>
+            <DialogDescription>Review product information.</DialogDescription>
+          </DialogHeader>
+          {viewItem && (
+            <div className="grid gap-6 md:grid-cols-2 max-h-[70vh] overflow-y-auto pr-1" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+              <div className="space-y-3">
+                {Array.isArray(viewItem.images) &&
+                viewItem.images.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {viewItem.images.slice(0, 4).map((u, i) => (
+                      <div
+                        key={i}
+                        className="relative aspect-4/3 overflow-hidden rounded bg-accent/20"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={u}
+                          alt={`Image ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No images</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <h3
+                    className="font-semibold"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    {viewItem.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    By {viewItem.artist}
+                  </p>
+                </div>
+                <div className="text-sm">
+                  <p>
+                    <span className="text-muted-foreground">Price:</span> $
+                    {viewItem.price}
+                  </p>
+                  {typeof viewItem.inventory === "number" && (
+                    <p>
+                      <span className="text-muted-foreground">Quantity:</span>{" "}
+                      {viewItem.inventory}
+                    </p>
+                  )}
+                  {viewItem.year && (
+                    <p>
+                      <span className="text-muted-foreground">Year:</span>{" "}
+                      {viewItem.year}
+                    </p>
+                  )}
+                  {viewItem.sku && (
+                    <p>
+                      <span className="text-muted-foreground">SKU:</span>{" "}
+                      {viewItem.sku}
+                    </p>
+                  )}
+                  {viewItem.barcode && (
+                    <p>
+                      <span className="text-muted-foreground">Barcode:</span>{" "}
+                      {viewItem.barcode}
+                    </p>
+                  )}
+                  <p>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    {viewItem.published === false ? "Draft" : "Published"}
+                  </p>
+                </div>
+                {viewItem.shortDescription && (
+                  <div>
+                    <p className="text-sm">{viewItem.shortDescription}</p>
+                  </div>
+                )}
+                {viewItem.description && (
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <p className="text-sm text-muted-foreground">
+                      {viewItem.description}
+                    </p>
+                  </div>
+                )}
+                {Array.isArray(viewItem.categories) &&
+                  viewItem.categories.length > 0 && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Categories:</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {viewItem.categories.map((c) => {
+                          const name = categoryNameById.get(c) ?? c;
+                          return (
+                            <span
+                              key={c}
+                              className="rounded-full border px-2 py-0.5 text-xs"
+                            >
+                              {name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                {Array.isArray(viewItem.variants) &&
+                  viewItem.variants.length > 0 && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Variants:</span>
+                      <div className="mt-1 space-y-1">
+                        {viewItem.variants.map((v) => (
+                          <div key={v.name}>
+                            <span className="font-medium">{v.name}:</span>{" "}
+                            <span className="text-muted-foreground">
+                              {v.values.join(", ")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Product Dialog (This remains unchanged and will use ImageUploader) */}
       <Dialog
         open={editOpen}
         onOpenChange={(v) => {
@@ -627,12 +888,12 @@ export default function ProductsPage() {
           setEditOpen(v);
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>Update product information.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4">
+          <div className="grid gap-4 max-h-[70vh] overflow-y-auto pr-1" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
                 <Label className="mb-1 block text-sm">Title</Label>
@@ -714,7 +975,7 @@ export default function ProductsPage() {
                   {images.map((u, i) => (
                     <div
                       key={i}
-                      className="relative aspect-[4/3] overflow-hidden rounded"
+                      className="relative aspect-4/3 overflow-hidden rounded"
                     >
                       <img
                         src={u}
@@ -800,7 +1061,7 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Product Confirm */}
+      {/* Delete Product Confirm (Unchanged) */}
       <AlertDialog
         open={!!pendingDelete}
         onOpenChange={(v) => !v && setPendingDelete(null)}
@@ -843,6 +1104,7 @@ export default function ProductsPage() {
   );
 }
 
+// ... (VariantMultiSelect component is unchanged) ...
 function VariantMultiSelect({
   values,
   selected,
