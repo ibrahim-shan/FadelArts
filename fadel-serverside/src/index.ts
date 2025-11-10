@@ -1,8 +1,8 @@
-import http from 'http';
-import app from './app';
-import { env } from './config/env';
-import { connectMongo, disconnectMongo } from './db/mongoose';
-import { ensureDefaultAdmin } from './services/admin';
+import http from "http";
+import app from "./app";
+import { env } from "./config/env";
+import { connectMongo, disconnectMongo } from "./db/mongoose";
+import { ensureDefaultAdmin } from "./services/admin";
 
 const server = http.createServer(app);
 
@@ -14,12 +14,12 @@ async function start() {
       console.log(`API listening on http://localhost:${env.PORT}`);
     });
   } catch (err) {
-    console.error('Failed to start server:', err);
+    console.error("Failed to start server:", err);
     process.exit(1);
   }
 }
 
-const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
+const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGQUIT"];
 signals.forEach((sig) => {
   process.on(sig, async () => {
     console.log(`Received ${sig}. Shutting down...`);

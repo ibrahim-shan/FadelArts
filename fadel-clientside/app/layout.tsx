@@ -29,7 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body suppressHydrationWarning className={`${headingFont.variable} ${bodyFont.variable} antialiased`}>
+      <body
+        suppressHydrationWarning
+        className={`${headingFont.variable} ${bodyFont.variable} antialiased`}
+      >
         <SmoothScroll />
         {children}
       </body>

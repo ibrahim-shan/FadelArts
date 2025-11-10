@@ -18,7 +18,8 @@ export default function Footer() {
               Fadel Art Shop
             </h3>
             <p className="text-sm text-muted-foreground prose-max mx-auto md:mx-0">
-              Art is a form of expression that transcends boundaries and speaks to the depths of the human experience.
+              Art is a form of expression that transcends boundaries and speaks to the depths of the
+              human experience.
             </p>
             <p className="mt-3 text-sm font-semibold text-foreground">Delivery all over Lebanon</p>
           </div>
@@ -27,14 +28,38 @@ export default function Footer() {
           <nav aria-label="Footer navigation">
             <div className="grid grid-cols-2 gap-8">
               <ul className="space-y-2 text-sm">
-                <li><Link href="/" className="hover:text-accent transition-base">Home</Link></li>
-                <li><Link href="/gallery" className="hover:text-accent transition-base">Gallery</Link></li>
-                <li><Link href="/shop" className="hover:text-accent transition-base">Shop</Link></li>
+                <li>
+                  <Link href="/" className="hover:text-accent transition-base">
+                    Home
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/gallery" className="hover:text-accent transition-base">
+                    Gallery
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/shop" className="hover:text-accent transition-base">
+                    Shop
+                  </Link>
+                </li>
               </ul>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/about" className="hover:text-accent transition-base">About</Link></li>
-                <li><Link href="/contact" className="hover:text-accent transition-base">Contact</Link></li>
-                <li><Link href="/privacy" className="hover:text-accent transition-base">Privacy</Link></li>
+                <li>
+                  <Link href="/about" className="hover:text-accent transition-base">
+                    About
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="hover:text-accent transition-base">
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="hover:text-accent transition-base">
+                    Privacy
+                  </Link>
+                </li>
               </ul>
             </div>
           </nav>
@@ -42,25 +67,47 @@ export default function Footer() {
           {/* Social + Meta */}
           <div className="flex flex-col items-center md:items-end gap-4">
             <div className="flex items-center gap-4">
-              <Link aria-label="Instagram" href="#" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base">
+              <Link
+                aria-label="Instagram"
+                href="#"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base"
+              >
                 <Instagram className="h-4 w-4" />
               </Link>
-              <Link aria-label="Facebook" href="#" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base">
+              <Link
+                aria-label="Facebook"
+                href="#"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base"
+              >
                 <Facebook className="h-4 w-4" />
               </Link>
-              <Link aria-label="TikTok" href="#" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base">
+              <Link
+                aria-label="TikTok"
+                href="#"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base"
+              >
                 <SiTiktok className="h-4 w-4" />
               </Link>
-              <Link aria-label="WhatsApp" href="#" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base">
+              <Link
+                aria-label="WhatsApp"
+                href="#"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground hover:text-accent shadow-brand-sm transition-base"
+              >
                 <SiWhatsapp className="h-4 w-4" />
               </Link>
             </div>
             <div className="text-sm text-muted-foreground flex items-center gap-3">
-              <Link href="/terms" className="hover:text-accent transition-base">Terms</Link>
+              <Link href="/terms" className="hover:text-accent transition-base">
+                Terms
+              </Link>
               <span aria-hidden>•</span>
-              <Link href="/privacy" className="hover:text-accent transition-base">Privacy</Link>
+              <Link href="/privacy" className="hover:text-accent transition-base">
+                Privacy
+              </Link>
             </div>
-            <p className="text-sm text-muted-foreground">© {year} Fadel Art. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">
+              © {year} Fadel Art. All rights reserved.
+            </p>
           </div>
         </div>
 

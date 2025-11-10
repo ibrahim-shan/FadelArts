@@ -44,8 +44,15 @@ export default function SignInPage() {
       <div className="container max-w-sm">
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-lg" style={{ fontFamily: "var(--font-heading)" }}>Admin Sign In</CardTitle>
-            <CardDescription className="text-center">Enter your admin credentials to access the dashboard.</CardDescription>
+            <CardTitle
+              className="text-center text-lg"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              Admin Sign In
+            </CardTitle>
+            <CardDescription className="text-center">
+              Enter your admin credentials to access the dashboard.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={onSubmit}>
@@ -80,4 +87,3 @@ export default function SignInPage() {
     </main>
   );
 }
-

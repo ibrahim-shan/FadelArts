@@ -54,7 +54,10 @@ export default function BestSellers({ id = "best-sellers" }: { id?: string }) {
   const [index, setIndex] = useState(0);
   const [dragging, setDragging] = useState(false);
   const positionsRef = useRef<number[]>([]);
-  const [constraints, setConstraints] = useState<{ left: number; right: number }>({ left: 0, right: 0 });
+  const [constraints, setConstraints] = useState<{ left: number; right: number }>({
+    left: 0,
+    right: 0,
+  });
   const [visibleCount, setVisibleCount] = useState(1);
   const centerOffsetRef = useRef(0);
 
@@ -65,9 +68,7 @@ export default function BestSellers({ id = "best-sellers" }: { id?: string }) {
     const last = children.length - 1;
     // Page-based navigation: jump by the number of visible items
     const step = Math.max(1, visibleCount);
-    const targetIndex = dir > 0
-      ? Math.min(last, index + step)
-      : Math.max(0, index - step);
+    const targetIndex = dir > 0 ? Math.min(last, index + step) : Math.max(0, index - step);
     setIndex(targetIndex);
     const left = children[targetIndex]?.offsetLeft ?? 0;
     const c = centerOffsetRef.current;
@@ -95,7 +96,8 @@ export default function BestSellers({ id = "best-sellers" }: { id?: string }) {
       setVisibleCount(count);
 
       // only center when a single card is visible (mobile)
-      const centerOffset = count === 1 && itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
+      const centerOffset =
+        count === 1 && itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
       centerOffsetRef.current = centerOffset;
       setConstraints({ left: -(lastLeft - centerOffset), right: centerOffset });
       const currentLeft = positions[index] ?? 0;
@@ -124,89 +126,93 @@ export default function BestSellers({ id = "best-sellers" }: { id?: string }) {
           <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background to-transparent" />
 
           <Reveal>
-          <div className="overflow-hidden py-3 md:py-0 touch-pan-y" ref={viewportRef}>
-            <motion.div
-              ref={scrollerRef}
-              className="flex gap-6 pb-2 cursor-grab select-none transform-gpu"
-              style={{ x, cursor: dragging ? "grabbing" : "grab", willChange: "transform" }}
-              drag="x"
-              dragElastic={0.04}
-              dragMomentum={false}
-              dragConstraints={constraints}
-              onDragStart={() => setDragging(true)}
-              onDragEnd={(_, info) => {
-                setDragging(false);
-                const positions = positionsRef.current;
-                if (!positions.length) return;
-                const currentX = x.get();
-                const c = centerOffsetRef.current;
-                // current left scroll position based on x and center offset
-                const leftNow = c - currentX;
-                // Predict next position using simple momentum from velocity (px/s)
-                const predictedLeft = leftNow - info.velocity.x * 0.2;
-                let nearestIndex = 0;
-                let nearestDist = Infinity;
-                positions.forEach((pos, i) => {
-                  const d = Math.abs(pos - predictedLeft);
-                  if (d < nearestDist) {
-                    nearestDist = d;
-                    nearestIndex = i;
-                  }
-                });
-                setIndex(nearestIndex);
-                const target = positions[nearestIndex] ?? 0;
-                animate(x, -(target - c), { type: "spring", stiffness: 170, damping: 26 });
-              }}
-              initial={{ opacity: 0, y: 8 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-            >
-              {ITEMS.map((item, idx) => {
-                const isActive = idx === index;
-                return (
-                  <motion.div
-                    key={idx}
-                    className="snap-start shrink-0 w-[76%] xs:w-[60%] sm:w-[42%] md:w-[32%] lg:w-[24%] transform-gpu"
-                    animate={isActive ? { scale: 1.03, rotateZ: 0.25 } : { scale: 1, rotateZ: 0 }}
-                    transition={{ type: "spring", stiffness: 220, damping: 26 }}
-                  >
-                    <ProductCard {...item} />
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          </div>
+            <div className="overflow-hidden py-3 md:py-0 touch-pan-y" ref={viewportRef}>
+              <motion.div
+                ref={scrollerRef}
+                className="flex gap-6 pb-2 cursor-grab select-none transform-gpu"
+                style={{ x, cursor: dragging ? "grabbing" : "grab", willChange: "transform" }}
+                drag="x"
+                dragElastic={0.04}
+                dragMomentum={false}
+                dragConstraints={constraints}
+                onDragStart={() => setDragging(true)}
+                onDragEnd={(_, info) => {
+                  setDragging(false);
+                  const positions = positionsRef.current;
+                  if (!positions.length) return;
+                  const currentX = x.get();
+                  const c = centerOffsetRef.current;
+                  // current left scroll position based on x and center offset
+                  const leftNow = c - currentX;
+                  // Predict next position using simple momentum from velocity (px/s)
+                  const predictedLeft = leftNow - info.velocity.x * 0.2;
+                  let nearestIndex = 0;
+                  let nearestDist = Infinity;
+                  positions.forEach((pos, i) => {
+                    const d = Math.abs(pos - predictedLeft);
+                    if (d < nearestDist) {
+                      nearestDist = d;
+                      nearestIndex = i;
+                    }
+                  });
+                  setIndex(nearestIndex);
+                  const target = positions[nearestIndex] ?? 0;
+                  animate(x, -(target - c), { type: "spring", stiffness: 170, damping: 26 });
+                }}
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                {ITEMS.map((item, idx) => {
+                  const isActive = idx === index;
+                  return (
+                    <motion.div
+                      key={idx}
+                      className="snap-start shrink-0 w-[76%] xs:w-[60%] sm:w-[42%] md:w-[32%] lg:w-[24%] transform-gpu"
+                      animate={isActive ? { scale: 1.03, rotateZ: 0.25 } : { scale: 1, rotateZ: 0 }}
+                      transition={{ type: "spring", stiffness: 220, damping: 26 }}
+                    >
+                      <ProductCard {...item} />
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </div>
           </Reveal>
 
           {/* Page-based dots */}
           <Reveal>
-          <div className="mt-4 flex items-center justify-center">
-            {(() => {
-              const totalPages = Math.max(1, Math.ceil(ITEMS.length / visibleCount));
-              const currentPage = Math.floor(index / visibleCount);
-              return (
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }).map((_, p) => (
-                    <button
-                      key={p}
-                      aria-label={`Go to page ${p + 1}`}
-                      onClick={() => {
-                        const targetIndex = Math.min(ITEMS.length - 1, p * visibleCount);
-                        setIndex(targetIndex);
-                        const targetLeft = positionsRef.current[targetIndex] ?? 0;
-                        const c = centerOffsetRef.current;
-                        animate(x, -(targetLeft - c), { type: "spring", stiffness: 170, damping: 26 });
-                      }}
-                      className={`h-2.5 rounded-full transition-colors ${
-                        p === currentPage ? "bg-primary w-6" : "bg-muted w-2.5 hover:bg-accent"
-                      }`}
-                    />
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
+            <div className="mt-4 flex items-center justify-center">
+              {(() => {
+                const totalPages = Math.max(1, Math.ceil(ITEMS.length / visibleCount));
+                const currentPage = Math.floor(index / visibleCount);
+                return (
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }).map((_, p) => (
+                      <button
+                        key={p}
+                        aria-label={`Go to page ${p + 1}`}
+                        onClick={() => {
+                          const targetIndex = Math.min(ITEMS.length - 1, p * visibleCount);
+                          setIndex(targetIndex);
+                          const targetLeft = positionsRef.current[targetIndex] ?? 0;
+                          const c = centerOffsetRef.current;
+                          animate(x, -(targetLeft - c), {
+                            type: "spring",
+                            stiffness: 170,
+                            damping: 26,
+                          });
+                        }}
+                        className={`h-2.5 rounded-full transition-colors ${
+                          p === currentPage ? "bg-primary w-6" : "bg-muted w-2.5 hover:bg-accent"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </Reveal>
 
           {/* Mobile controls removed per request */}

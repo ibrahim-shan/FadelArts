@@ -22,8 +22,13 @@ export default function ContactPage() {
       <section className="relative overflow-hidden bg-secondary/50">
         <div className="container py-16">
           <Reveal mode="mount">
-            <div className="mb-6"><Breadcrumb items={[{ label: "Contact" }]} /></div>
-            <h1 className="mb-3 text-center md:text-left" style={{ fontFamily: "var(--font-heading)" }}>
+            <div className="mb-6">
+              <Breadcrumb items={[{ label: "Contact" }]} />
+            </div>
+            <h1
+              className="mb-3 text-center md:text-left"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               Contact Us
             </h1>
             <p className="text-center md:text-left text-muted-foreground">
@@ -64,13 +69,18 @@ export default function ContactPage() {
                 </div>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {info.map(({ icon: Icon, label, value }) => (
-                    <li key={label} className="rounded-xl border border-border bg-card p-5 shadow-brand-sm">
+                    <li
+                      key={label}
+                      className="rounded-xl border border-border bg-card p-5 shadow-brand-sm"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground/80">
                           <Icon className="h-5 w-5 text-accent" />
                         </span>
                         <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            {label}
+                          </p>
                           <p className="text-sm">{value}</p>
                         </div>
                       </div>

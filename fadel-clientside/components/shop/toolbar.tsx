@@ -19,7 +19,9 @@ export default function ShopToolbar() {
         />
       </div>
       <div className="flex items-center gap-2">
-        <label htmlFor="sort" className="text-sm text-muted-foreground">Sort by</label>
+        <label htmlFor="sort" className="text-sm text-muted-foreground">
+          Sort by
+        </label>
         <select
           id="sort"
           value={sort}
@@ -35,4 +37,3 @@ export default function ShopToolbar() {
     </div>
   );
 }
-

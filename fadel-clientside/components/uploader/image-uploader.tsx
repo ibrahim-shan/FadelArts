@@ -44,7 +44,7 @@ export default function ImageUploader({
       url,
       progress: 100,
       status: "done",
-    }))
+    })),
   );
   const [busy, setBusy] = React.useState(false);
 
@@ -56,16 +56,14 @@ export default function ImageUploader({
           url,
           progress: 100,
           status: "done",
-        }))
+        })),
       );
     }
   }, [controlled, value]);
 
   const commit = (next: UploadItem[]) => {
     setItems(next);
-    const urls = next
-      .filter((i) => i.status === "done" && i.url)
-      .map((i) => i.url);
+    const urls = next.filter((i) => i.status === "done" && i.url).map((i) => i.url);
     onChange?.(urls);
   };
 
@@ -99,19 +97,15 @@ export default function ImageUploader({
           if (prefix.startsWith(`${bucket}/`)) {
             prefix = prefix.slice(bucket.length + 1);
           }
-          const key = `${
-            prefix ? prefix + "/" : ""
-          }${Date.now()}_${idx}_${safeName}`;
+          const key = `${prefix ? prefix + "/" : ""}${Date.now()}_${idx}_${safeName}`;
           try {
           } catch {}
           updateItem(it, { status: "uploading", progress: 10 });
-          const { error } = await supabase.storage
-            .from(bucket)
-            .upload(key, it.file, {
-              cacheControl: "3600",
-              upsert: true,
-              contentType: it.file.type,
-            });
+          const { error } = await supabase.storage.from(bucket).upload(key, it.file, {
+            cacheControl: "3600",
+            upsert: true,
+            contentType: it.file.type,
+          });
           if (error) throw error;
           const { data } = supabase.storage.from(bucket).getPublicUrl(key);
           const url = data.publicUrl;
@@ -124,7 +118,7 @@ export default function ImageUploader({
           } catch {}
           updateItem(it, { status: "error", error: String(e?.message || e) });
         }
-      })
+      }),
     );
     setBusy(false);
     if (newlyUploaded.length) onUploaded?.(newlyUploaded);
@@ -169,12 +163,7 @@ export default function ImageUploader({
       />
 
       <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={pickFiles}
-          disabled={busy}
-        >
+        <Button type="button" variant="outline" onClick={pickFiles} disabled={busy}>
           Choose {multiple ? "Images" : "Image"}
         </Button>
       </div>
@@ -182,18 +171,11 @@ export default function ImageUploader({
       {!!items.length && (
         <ul className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3">
           {items.map((it, i) => (
-            <li
-              key={`${it.name}-${i}`}
-              className="rounded-md border border-border p-2"
-            >
+            <li key={`${it.name}-${i}`} className="rounded-md border border-border p-2">
               <div className="relative aspect-4/3 w-full overflow-hidden rounded bg-accent/20">
                 {it.url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={it.url}
-                    alt={it.name}
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={it.url} alt={it.name} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                     {it.status}
@@ -221,15 +203,9 @@ export default function ImageUploader({
                 </div>
                 <div className="flex items-center gap-2">
                   {it.progress > 0 && it.progress < 100 && (
-                    <span className="text-xs text-muted-foreground">
-                      {it.progress}%
-                    </span>
+                    <span className="text-xs text-muted-foreground">{it.progress}%</span>
                   )}
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={() => removeAt(i)}
-                  >
+                  <Button variant="destructive" size="icon-sm" onClick={() => removeAt(i)}>
                     ×
                   </Button>
                 </div>

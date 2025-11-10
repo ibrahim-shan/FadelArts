@@ -47,6 +47,8 @@ export default function StylesPage() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  const [loadingAction, setLoadingAction] = useState(false);
+
   const [items, setItems] = useState<Style[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -61,10 +63,37 @@ export default function StylesPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [stagedFile, setStagedFile] = useState<File | null>(null);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / pageSize)),
-    [total]
-  );
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
+
+  async function deleteImageFromSupabase(imageUrl: string | undefined) {
+    if (!imageUrl) return;
+
+    const bucketName = "products";
+    const pathPrefix = `/${bucketName}/`;
+    const pathIndex = imageUrl.indexOf(pathPrefix);
+
+    if (pathIndex === -1) {
+      console.warn("Could not determine image path from URL:", imageUrl);
+      return;
+    }
+
+    const imagePath = imageUrl.substring(pathIndex + pathPrefix.length);
+
+    if (!imagePath) {
+      console.warn("Extracted image path is empty:", imageUrl);
+      return;
+    }
+
+    try {
+      console.log(`Deleting image from Supabase: ${imagePath}`);
+      const { error } = await supabase.storage.from(bucketName).remove([imagePath]);
+      if (error) {
+        console.warn("Failed to delete old image from Supabase:", error.message);
+      }
+    } catch (e: any) {
+      console.warn("Error during Supabase image deletion:", e.message);
+    }
+  }
 
   async function fetchData(signal?: AbortSignal) {
     setLoading(true);
@@ -74,7 +103,10 @@ export default function StylesPage() {
       url.searchParams.set("page", String(page));
       url.searchParams.set("pageSize", String(pageSize));
 
-      const res = await fetch(url.toString(), { credentials: "include", signal });
+      const res = await fetch(url.toString(), {
+        credentials: "include",
+        signal,
+      });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load styles");
 
@@ -102,13 +134,14 @@ export default function StylesPage() {
 
   async function uploadImage(file: File): Promise<string> {
     const path = `styles/${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage.from("images").upload(path, file);
+    const { data, error } = await supabase.storage.from("products").upload(path, file);
     if (error) throw error;
-    const { data: publicUrl } = supabase.storage.from("images").getPublicUrl(path);
+    const { data: publicUrl } = supabase.storage.from("products").getPublicUrl(path);
     return publicUrl.publicUrl;
   }
 
   async function createStyle() {
+    setLoadingAction(true);
     try {
       let uploadedUrl = imageUrl;
       if (stagedFile) uploadedUrl = await uploadImage(stagedFile);
@@ -128,24 +161,43 @@ export default function StylesPage() {
       await fetchData();
     } catch (e: any) {
       alert(e?.message || "Failed to create style");
+    } finally {
+      setLoadingAction(false);
     }
   }
 
   async function updateStyleSubmit() {
     if (!editItem) return;
+    setLoadingAction(true);
+    const oldImageUrl = editItem.image;
+    let finalImageUrl = imageUrl;
     try {
-      let uploadedUrl = imageUrl;
-      if (stagedFile) uploadedUrl = await uploadImage(stagedFile);
+      if (stagedFile) {
+        finalImageUrl = await uploadImage(stagedFile); // Upload new image
+      }
 
       const res = await fetch(`${apiBase}/api/styles/${editItem._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, description, image: uploadedUrl }),
+        body: JSON.stringify({ name, description, image: finalImageUrl }),
       });
 
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to update");
+
+      // *** START OF FIX ***
+
+      // 1. Check for failure and throw an error first.
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed to update style");
+      }
+
+      // 2. If the update succeeded, *now* delete the old image.
+      if (oldImageUrl && oldImageUrl !== finalImageUrl) {
+        await deleteImageFromSupabase(oldImageUrl);
+      }
+
+      // *** END OF FIX ***
 
       setEditOpen(false);
       setEditItem(null);
@@ -153,21 +205,33 @@ export default function StylesPage() {
       await fetchData();
     } catch (e: any) {
       alert(e?.message || "Failed to update style");
+    } finally {
+      setLoadingAction(false);
     }
   }
 
-  async function deleteStyle(id: string) {
+  async function deleteStyle(styleToDelete: Style) {
+    setLoadingAction(true);
     try {
-      const res = await fetch(`${apiBase}/api/styles/${id}`, {
+      // First, delete the item from the database
+      const res = await fetch(`${apiBase}/api/styles/${styleToDelete._id}`, {
         method: "DELETE",
         credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to delete");
+
+      // *** 7. AFTER SUCCESSFUL DB DELETE, DELETE FROM SUPABASE ***
+      if (styleToDelete.image) {
+        await deleteImageFromSupabase(styleToDelete.image);
+      }
+
       setPendingDelete(null);
       await fetchData();
     } catch (e: any) {
       alert(e?.message || "Failed to delete style");
+    } finally {
+      setLoadingAction(false);
     }
   }
 
@@ -221,9 +285,7 @@ export default function StylesPage() {
                   )}
                 </TableCell>
                 <TableCell className="font-medium">{s.name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {s.description}
-                </TableCell>
+                <TableCell className="text-muted-foreground">{s.description}</TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button
                     variant="outline"
@@ -238,11 +300,7 @@ export default function StylesPage() {
                   >
                     Edit
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setPendingDelete(s)}
-                  >
+                  <Button variant="destructive" size="sm" onClick={() => setPendingDelete(s)}>
                     Delete
                   </Button>
                 </TableCell>
@@ -250,10 +308,7 @@ export default function StylesPage() {
             ))}
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center text-muted-foreground py-10"
-                >
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
                   No styles found
                 </TableCell>
               </TableRow>
@@ -264,9 +319,7 @@ export default function StylesPage() {
 
       {/* Pagination */}
       <div className="flex items-center justify-between text-sm">
-        <div className="text-muted-foreground">
-          {loading ? "Loading..." : `${total} total`}
-        </div>
+        <div className="text-muted-foreground">{loading ? "Loading..." : `${total} total`}</div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -305,23 +358,21 @@ export default function StylesPage() {
             </div>
             <div>
               <Label>Description</Label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div>
               <Label>Image</Label>
               <Input
                 type="file"
                 accept="image/*"
+                disabled={loadingAction}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) setStagedFile(f);
                 }}
               />
               {(stagedFile || imageUrl) && (
-                <div className="mt-3 w-40 aspect-[4/3] overflow-hidden rounded border">
+                <div className="mt-3 w-40 aspect-4/3 overflow-hidden rounded border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={stagedFile ? URL.createObjectURL(stagedFile) : imageUrl}
@@ -339,6 +390,7 @@ export default function StylesPage() {
                       setStagedFile(null);
                       setImageUrl("");
                     }}
+                    disabled={loadingAction}
                   >
                     Remove Image
                   </Button>
@@ -377,10 +429,7 @@ export default function StylesPage() {
             </div>
             <div>
               <Label>Description</Label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div>
               <Label>Image</Label>
@@ -393,7 +442,7 @@ export default function StylesPage() {
                 }}
               />
               {(stagedFile || imageUrl) && (
-                <div className="mt-3 w-40 aspect-[4/3] overflow-hidden rounded border">
+                <div className="mt-3 w-40 aspect-4/3 overflow-hidden rounded border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={stagedFile ? URL.createObjectURL(stagedFile) : imageUrl}
@@ -429,23 +478,20 @@ export default function StylesPage() {
       </Dialog>
 
       {/* Delete confirm */}
-      <AlertDialog
-        open={!!pendingDelete}
-        onOpenChange={(v) => !v && setPendingDelete(null)}
-      >
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete style?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. It will permanently delete “
-              {pendingDelete?.name}”.
+              This action cannot be undone. It will permanently delete “{pendingDelete?.name}”.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => pendingDelete && deleteStyle(pendingDelete._id)}
+              onClick={() => pendingDelete && deleteStyle(pendingDelete)}
               className="bg-destructive hover:bg-destructive/90"
+              disabled={loadingAction}
             >
               Delete
             </AlertDialogAction>

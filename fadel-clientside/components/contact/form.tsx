@@ -25,7 +25,9 @@ export default function ContactForm() {
         <p className="font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
           Thank you!
         </p>
-        <p className="text-sm text-muted-foreground">We received your message and will get back to you soon.</p>
+        <p className="text-sm text-muted-foreground">
+          We received your message and will get back to you soon.
+        </p>
       </div>
     );
   }

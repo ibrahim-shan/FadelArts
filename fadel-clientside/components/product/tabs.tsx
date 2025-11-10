@@ -30,7 +30,7 @@ export default function ProductTabs({ product }: { product: Product }) {
                 "relative py-3 text-sm font-medium transition-colors duration-200",
                 active === t.key
                   ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {t.label}
@@ -89,8 +89,8 @@ export default function ProductTabs({ product }: { product: Product }) {
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
               <p>
-                {product.artist} is featured in our curated collection. Each piece is
-                selected for craftsmanship and originality.
+                {product.artist} is featured in our curated collection. Each piece is selected for
+                craftsmanship and originality.
               </p>
             </motion.div>
           )}

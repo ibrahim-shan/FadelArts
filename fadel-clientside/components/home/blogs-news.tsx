@@ -30,7 +30,15 @@ const POSTS: Post[] = [
   },
 ];
 
-function BlogCard({ post, featured = false, fillHeight = false }: { post: Post; featured?: boolean; fillHeight?: boolean }) {
+function BlogCard({
+  post,
+  featured = false,
+  fillHeight = false,
+}: {
+  post: Post;
+  featured?: boolean;
+  fillHeight?: boolean;
+}) {
   return (
     <Link href={post.href} className="group">
       <motion.div
@@ -43,9 +51,7 @@ function BlogCard({ post, featured = false, fillHeight = false }: { post: Post; 
           <>
             <div
               className={
-                (fillHeight
-                  ? "flex-1 min-h-[220px] "
-                  : "") +
+                (fillHeight ? "flex-1 min-h-[220px] " : "") +
                 "relative overflow-hidden rounded-xl shadow-brand-sm"
               }
             >
@@ -112,17 +118,17 @@ export default function BlogsNews({ id = "blogs" }: { id?: string }) {
 
         {/* Mobile: stack; Desktop: two-column flex with equal column heights */}
         <Reveal>
-        <div className="flex flex-col md:flex-row md:items-stretch md:gap-6">
-          <div className="md:w-2/3 md:flex">
-            <div className="w-full h-full">
-              <BlogCard post={first} featured fillHeight />
+          <div className="flex flex-col md:flex-row md:items-stretch md:gap-6">
+            <div className="md:w-2/3 md:flex">
+              <div className="w-full h-full">
+                <BlogCard post={first} featured fillHeight />
+              </div>
+            </div>
+            <div className="mt-6 md:mt-0 md:w-1/3 flex flex-col gap-6">
+              <BlogCard post={second} />
+              <BlogCard post={third} />
             </div>
           </div>
-          <div className="mt-6 md:mt-0 md:w-1/3 flex flex-col gap-6">
-            <BlogCard post={second} />
-            <BlogCard post={third} />
-          </div>
-        </div>
         </Reveal>
       </div>
     </section>

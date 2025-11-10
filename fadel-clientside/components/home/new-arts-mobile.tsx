@@ -39,7 +39,10 @@ export default function NewArtsMobile() {
   const [index, setIndex] = useState(0);
   const [dragging, setDragging] = useState(false);
   const positionsRef = useRef<number[]>([]);
-  const [constraints, setConstraints] = useState<{ left: number; right: number }>({ left: 0, right: 0 });
+  const [constraints, setConstraints] = useState<{ left: number; right: number }>({
+    left: 0,
+    right: 0,
+  });
 
   // Measure positions and center single card in viewport
   useEffect(() => {
@@ -139,8 +142,13 @@ export default function NewArtsMobile() {
                 const children = node ? (Array.from(node.children) as HTMLElement[]) : [];
                 const viewportWidth = viewport?.clientWidth ?? 0;
                 const itemWidth = children[0]?.clientWidth ?? 0;
-                const centerOffset = itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
-                animate(x, -(targetLeft - centerOffset), { type: "spring", stiffness: 170, damping: 26 });
+                const centerOffset =
+                  itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
+                animate(x, -(targetLeft - centerOffset), {
+                  type: "spring",
+                  stiffness: 170,
+                  damping: 26,
+                });
               }}
               className={`h-2.5 rounded-full transition-colors ${
                 i === index ? "bg-primary w-6" : "bg-muted w-2.5 hover:bg-accent"

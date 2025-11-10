@@ -19,23 +19,26 @@ export default function TrustBenefits() {
     <section aria-label="Shop benefits" className="py-10 hidden md:block">
       <div className="container">
         <Reveal>
-        <div className="w-full rounded-xl bg-secondary/60 border border-border shadow-brand-sm">
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
-            {ITEMS.map(({ icon: Icon, title, desc }, i) => (
-              <li key={i} className="flex items-center gap-4 p-6">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-background text-accent shadow-brand-sm">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
-                    {title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{desc}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+          <div className="w-full rounded-xl bg-secondary/60 border border-border shadow-brand-sm">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+              {ITEMS.map(({ icon: Icon, title, desc }, i) => (
+                <li key={i} className="flex items-center gap-4 p-6">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-background text-accent shadow-brand-sm">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {title}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Reveal>
       </div>
     </section>

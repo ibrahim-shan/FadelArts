@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models } from "mongoose";
 
 export interface CounterDoc {
   key: string;
@@ -10,5 +10,4 @@ const CounterSchema = new Schema<CounterDoc>({
   seq: { type: Number, default: 0 },
 });
 
-export const Counter = models.Counter || model<CounterDoc>('Counter', CounterSchema);
-
+export const Counter = models.Counter || model<CounterDoc>("Counter", CounterSchema);

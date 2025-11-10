@@ -21,7 +21,10 @@ export default function PageHeader({
               <Breadcrumb items={crumbs} />
             </div>
           ) : null}
-          <h1 className="mb-3 text-center md:text-left" style={{ fontFamily: "var(--font-heading)" }}>
+          <h1
+            className="mb-3 text-center md:text-left"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             {title}
           </h1>
           {subtitle ? (
@@ -32,4 +35,3 @@ export default function PageHeader({
     </section>
   );
 }
-

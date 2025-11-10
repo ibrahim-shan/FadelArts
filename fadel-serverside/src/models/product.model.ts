@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models } from "mongoose";
 
 export interface ProductDoc {
   slug: string;
@@ -33,8 +33,8 @@ const ProductSchema = new Schema<ProductDoc>(
     artist: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: { type: Number, min: 0 },
-    description: { type: String, default: '' },
-    shortDescription: { type: String, default: '' },
+    description: { type: String, default: "" },
+    shortDescription: { type: String, default: "" },
     images: { type: [String], default: [] },
     dimensions: String,
     medium: String,
@@ -55,13 +55,13 @@ const ProductSchema = new Schema<ProductDoc>(
             name: { type: String, required: true },
             values: { type: [String], default: [] },
           },
-          { _id: false }
+          { _id: false },
         ),
       ],
       default: [],
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const Product = models.Product || model<ProductDoc>('Product', ProductSchema);
+export const Product = models.Product || model<ProductDoc>("Product", ProductSchema);

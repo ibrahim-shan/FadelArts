@@ -27,9 +27,7 @@ export default function Breadcrumb({ items }: { items: Crumb[] }) {
                   {c.label}
                 </span>
               )}
-              {!isLast && (
-                <ChevronRight aria-hidden className="h-3.5 w-3.5 opacity-60" />
-              )}
+              {!isLast && <ChevronRight aria-hidden className="h-3.5 w-3.5 opacity-60" />}
             </li>
           );
         })}

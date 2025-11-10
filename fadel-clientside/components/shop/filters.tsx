@@ -60,16 +60,11 @@ function Collapsible({
         className="w-full flex items-center justify-between py-2 text-left"
         aria-expanded={open}
       >
-        <span
-          className="text-sm font-semibold"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
+        <span className="text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
           {title}
         </span>
         <ChevronDown
-          className={`h-4 w-4 transition-transform ${
-            open ? "rotate-180" : "rotate-0"
-          }`}
+          className={`h-4 w-4 transition-transform ${open ? "rotate-180" : "rotate-0"}`}
         />
       </button>
       <AnimatePresence initial={false}>
@@ -91,19 +86,10 @@ function Collapsible({
 }
 
 // *** FIX: Moved Section component outside ShopFilters ***
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-4 border-b border-border/60 last:border-b-0">
-      <h3
-        className="text-sm font-semibold mb-3"
-        style={{ fontFamily: "var(--font-heading)" }}
-      >
+      <h3 className="text-sm font-semibold mb-3" style={{ fontFamily: "var(--font-heading)" }}>
         {title}
       </h3>
       {children}
@@ -136,10 +122,7 @@ function Checkbox({
         }`}
       >
         {isOn && (
-          <svg
-            viewBox="0 0 12 10"
-            className="h-2.5 w-2.5 text-primary-foreground"
-          >
+          <svg viewBox="0 0 12 10" className="h-2.5 w-2.5 text-primary-foreground">
             <path
               d="M1 5.5 4.5 9 11 1"
               fill="none"
@@ -179,10 +162,7 @@ export default function ShopFilters() {
   return (
     <aside className="rounded-xl border border-border bg-card p-4 shadow-brand-sm">
       <div className="flex items-center justify-between mb-2">
-        <h2
-          className="text-base font-semibold"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
+        <h2 className="text-base font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
           Filters
         </h2>
         <Button variant="ghost" className="h-8 px-3" onClick={clearAll}>
@@ -193,15 +173,10 @@ export default function ShopFilters() {
         <div className="grid gap-1.5">
           {CATEGORIES.map(
             (
-              o // *** FIX: Pass isOn and onToggle props to Checkbox ***
+              o, // *** FIX: Pass isOn and onToggle props to Checkbox ***
             ) => (
-              <Checkbox
-                key={o.id}
-                {...o}
-                isOn={!!selected[o.id]}
-                onToggle={toggle}
-              />
-            )
+              <Checkbox key={o.id} {...o} isOn={!!selected[o.id]} onToggle={toggle} />
+            ),
           )}
         </div>
       </Collapsible>
@@ -209,15 +184,10 @@ export default function ShopFilters() {
         <div className="grid gap-1.5">
           {STYLES.map(
             (
-              o // *** FIX: Pass isOn and onToggle props to Checkbox ***
+              o, // *** FIX: Pass isOn and onToggle props to Checkbox ***
             ) => (
-              <Checkbox
-                key={o.id}
-                {...o}
-                isOn={!!selected[o.id]}
-                onToggle={toggle}
-              />
-            )
+              <Checkbox key={o.id} {...o} isOn={!!selected[o.id]} onToggle={toggle} />
+            ),
           )}
         </div>
       </Collapsible>
@@ -249,10 +219,7 @@ export default function ShopFilters() {
               onBlur={() => {
                 const v = Number(priceMin);
                 if (!Number.isNaN(v)) {
-                  const clamped = Math.max(
-                    PRICE_MIN,
-                    Math.min(v, rangeMax - PRICE_STEP)
-                  );
+                  const clamped = Math.max(PRICE_MIN, Math.min(v, rangeMax - PRICE_STEP));
                   setRangeMin(clamped);
                   setPriceMin(String(clamped));
                 } else {
@@ -276,10 +243,7 @@ export default function ShopFilters() {
               onBlur={() => {
                 const v = Number(priceMax);
                 if (!Number.isNaN(v)) {
-                  const clamped = Math.min(
-                    PRICE_MAX,
-                    Math.max(v, rangeMin + PRICE_STEP)
-                  );
+                  const clamped = Math.min(PRICE_MAX, Math.max(v, rangeMin + PRICE_STEP));
                   setRangeMax(clamped);
                   setPriceMax(String(clamped));
                 } else {
@@ -295,12 +259,7 @@ export default function ShopFilters() {
         <div className="grid gap-1.5">
           {SIZES.map((o) => (
             // *** FIX: Pass isOn and onToggle props to Checkbox ***
-            <Checkbox
-              key={o.id}
-              {...o}
-              isOn={!!selected[o.id]}
-              onToggle={toggle}
-            />
+            <Checkbox key={o.id} {...o} isOn={!!selected[o.id]} onToggle={toggle} />
           ))}
         </div>
       </Section>
@@ -314,7 +273,7 @@ export default function ShopFilters() {
             >
               <UICheckbox
                 checked={!!selected[c.id]}
-               onCheckedChange={() => toggle(c.id)}// <-- This correctly handles the click
+                onCheckedChange={() => toggle(c.id)} // <-- This correctly handles the click
                 className="sr-only"
                 aria-label={c.name}
               />

@@ -20,33 +20,33 @@ export default function Subscription() {
     <section id="subscribe" className="py-12">
       <div className="container">
         <Reveal>
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="mb-3" style={{ fontFamily: "var(--font-heading)" }}>
-            Stay in the loop
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6">
-            Subscribe to get updates on new artworks, collections, and stories.
-          </p>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="mb-3" style={{ fontFamily: "var(--font-heading)" }}>
+              Stay in the loop
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Subscribe to get updates on new artworks, collections, and stories.
+            </p>
 
-          {status === "success" ? (
-            <div className="rounded-lg bg-secondary p-4 text-sm">
-              Thanks! You’re subscribed.
-            </div>
-          ) : (
-            <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="h-11 sm:max-w-md"
-                aria-label="Email address"
-              />
-              <Button type="submit" className="h-11 px-6">Subscribe</Button>
-            </form>
-          )}
-        </div>
+            {status === "success" ? (
+              <div className="rounded-lg bg-secondary p-4 text-sm">Thanks! You’re subscribed.</div>
+            ) : (
+              <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="h-11 sm:max-w-md"
+                  aria-label="Email address"
+                />
+                <Button type="submit" className="h-11 px-6">
+                  Subscribe
+                </Button>
+              </form>
+            )}
+          </div>
         </Reveal>
       </div>
     </section>

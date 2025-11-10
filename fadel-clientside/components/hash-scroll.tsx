@@ -3,7 +3,13 @@
 import { useEffect } from "react";
 import { scroller } from "react-scroll";
 
-export default function HashScroll({ offset = -64, duration = 500 }: { offset?: number; duration?: number }) {
+export default function HashScroll({
+  offset = -64,
+  duration = 500,
+}: {
+  offset?: number;
+  duration?: number;
+}) {
   useEffect(() => {
     const doScroll = () => {
       const hash = typeof window !== "undefined" ? window.location.hash : "";
@@ -23,4 +29,3 @@ export default function HashScroll({ offset = -64, duration = 500 }: { offset?: 
   }, [offset, duration]);
   return null;
 }
-

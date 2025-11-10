@@ -20,11 +20,7 @@ export async function generateMetadata({
   return { title: `${p.title} — Fadel Art`, description: p.description };
 }
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const product = getProductBySlug(slug);
   if (!product) return notFound();
@@ -35,9 +31,7 @@ export default async function ProductPage({
     <main>
       <section className="relative overflow-hidden bg-secondary/50">
         <div className="container py-10">
-          <Breadcrumb
-            items={[{ label: "Shop", href: "/shop" }, { label: title }]}
-          />
+          <Breadcrumb items={[{ label: "Shop", href: "/shop" }, { label: title }]} />
         </div>
       </section>
 
@@ -54,39 +48,23 @@ export default async function ProductPage({
             {/* Details */}
             <div>
               <Reveal>
-                <h1
-                  className="text-2xl md:text-3xl"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
+                <h1 className="text-2xl md:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>
                   {title}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  By {artist}
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">By {artist}</p>
                 <p className="mt-4 text-xl font-semibold">${price}</p>
-                <p className="mt-4 text-sm text-muted-foreground prose-max">
-                  {description}
-                </p>
+                <p className="mt-4 text-sm text-muted-foreground prose-max">{description}</p>
                 <div className="mt-6">
                   {(() => {
                     const msg = encodeURIComponent(
-                      `Hello, I'm interested in "${title}" (${slug}).`
+                      `Hello, I'm interested in "${title}" (${slug}).`,
                     );
                     const waHref = `https://wa.me/${
                       process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ""
                     }?text=${msg}`;
                     return (
-                      <Button
-                        variant="whatsapp"
-                        size="lg"
-                        asChild
-                        className="h-11 px-6"
-                      >
-                        <a
-                          href={waHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
+                      <Button variant="whatsapp" size="lg" asChild className="h-11 px-6">
+                        <a href={waHref} target="_blank" rel="noopener noreferrer">
                           <FaWhatsapp />
                           Order Now
                         </a>

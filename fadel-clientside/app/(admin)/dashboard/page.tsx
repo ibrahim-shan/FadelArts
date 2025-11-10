@@ -13,7 +13,10 @@ export default function DashboardPage() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${apiBase}/api/auth/me`, { credentials: "include", cache: "no-store" });
+        const res = await fetch(`${apiBase}/api/auth/me`, {
+          credentials: "include",
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("unauthorized");
         const data = await res.json();
         if (active && data?.ok) {
@@ -41,7 +44,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl md:text-2xl font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
+      <h1
+        className="text-xl md:text-2xl font-semibold"
+        style={{ fontFamily: "var(--font-heading)" }}
+      >
         Admin Dashboard
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">Signed in as {email}</p>

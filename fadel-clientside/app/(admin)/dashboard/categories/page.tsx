@@ -52,7 +52,10 @@ export default function CategoriesPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
-  const [form, setForm] = useState<{ name: string; description: string }>({ name: "", description: "" });
+  const [form, setForm] = useState<{ name: string; description: string }>({
+    name: "",
+    description: "",
+  });
   const [editItem, setEditItem] = useState<Category | null>(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
@@ -155,7 +158,14 @@ export default function CategoriesPage() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => { resetForm(); setAddOpen(true); }}>Add Category</Button>
+          <Button
+            onClick={() => {
+              resetForm();
+              setAddOpen(true);
+            }}
+          >
+            Add Category
+          </Button>
         </div>
       </div>
 
@@ -177,7 +187,11 @@ export default function CategoriesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { setEditItem(c); setForm({ name: c.name, description: c.description ?? "" }); setEditOpen(true); }}
+                    onClick={() => {
+                      setEditItem(c);
+                      setForm({ name: c.name, description: c.description ?? "" });
+                      setEditOpen(true);
+                    }}
                   >
                     Edit
                   </Button>
@@ -201,11 +215,23 @@ export default function CategoriesPage() {
       <div className="flex items-center justify-between text-sm">
         <div className="text-muted-foreground">{loading ? "Loading..." : `${total} total`}</div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
             Previous
           </Button>
-          <span className="text-muted-foreground">Page {page} of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+          <span className="text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
             Next
           </Button>
         </div>
@@ -221,11 +247,19 @@ export default function CategoriesPage() {
           <div className="space-y-4">
             <div>
               <Label className="mb-1 block text-sm">Name</Label>
-              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g., Abstract" />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g., Abstract"
+              />
             </div>
             <div>
               <Label className="mb-1 block text-sm">Description</Label>
-              <Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional" />
+              <Input
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Optional"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -238,7 +272,13 @@ export default function CategoriesPage() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={(v) => { if (!v) setEditItem(null); setEditOpen(v); }}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(v) => {
+          if (!v) setEditItem(null);
+          setEditOpen(v);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
@@ -247,11 +287,17 @@ export default function CategoriesPage() {
           <div className="space-y-4">
             <div>
               <Label className="mb-1 block text-sm">Name</Label>
-              <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              />
             </div>
             <div>
               <Label className="mb-1 block text-sm">Description</Label>
-              <Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+              <Input
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -269,12 +315,16 @@ export default function CategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete category?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the category "{pendingDelete?.name}".
+              This action cannot be undone. This will permanently delete the category "
+              {pendingDelete?.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pendingDelete && deleteCategory(pendingDelete._id)} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={() => pendingDelete && deleteCategory(pendingDelete._id)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -283,4 +333,3 @@ export default function CategoriesPage() {
     </div>
   );
 }
-

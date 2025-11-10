@@ -59,10 +59,7 @@ export function Hero({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, interval]);
 
-  const transition = useMemo(
-    () => ({ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] as any }),
-    []
-  );
+  const transition = useMemo(() => ({ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] as any }), []);
 
   return (
     <section id={id} className="relative w-full" aria-label="Featured artwork">
@@ -87,7 +84,7 @@ export function Hero({
                   className="object-cover"
                 />
               </motion.div>
-            ) : null
+            ) : null,
           )}
         </AnimatePresence>
 
@@ -100,10 +97,7 @@ export function Hero({
             transition={transition}
             className="text-center px-6"
           >
-            <h1
-              className="mb-6 leading-tight"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
+            <h1 className="mb-6 leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
               {slides[index]?.title.split("|").map((line, i) => (
                 <span key={i} className="block">
                   {line}
@@ -126,9 +120,7 @@ export function Hero({
               aria-label={`Go to slide ${i + 1}`}
               onClick={() => goTo(i)}
               className={`h-2.5 rounded-full transition-base ${
-                i === index
-                  ? "bg-primary w-7"
-                  : "bg-muted w-2.5 hover:bg-accent"
+                i === index ? "bg-primary w-7" : "bg-muted w-2.5 hover:bg-accent"
               }`}
             />
           ))}

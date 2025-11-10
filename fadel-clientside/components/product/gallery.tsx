@@ -7,7 +7,10 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
   const [active, setActive] = useState(0);
   return (
     <div>
-      <div className="relative w-full overflow-hidden rounded-xl shadow-brand-md" style={{ aspectRatio: "4 / 5" }}>
+      <div
+        className="relative w-full overflow-hidden rounded-xl shadow-brand-md"
+        style={{ aspectRatio: "4 / 5" }}
+      >
         <Image
           src={images[active]}
           alt={title}
@@ -26,7 +29,13 @@ export default function ProductGallery({ images, title }: { images: string[]; ti
             style={{ aspectRatio: "1 / 1" }}
             aria-label={`View image ${idx + 1}`}
           >
-            <Image src={src} alt={`${title} thumbnail ${idx + 1}`} fill sizes="120px" className="object-cover" />
+            <Image
+              src={src}
+              alt={`${title} thumbnail ${idx + 1}`}
+              fill
+              sizes="120px"
+              className="object-cover"
+            />
           </button>
         ))}
       </div>

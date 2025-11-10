@@ -8,4 +8,3 @@ export function GET(_: Request, { params }: { params: { slug: string } }) {
   }
   return NextResponse.json(product);
 }
-

@@ -22,15 +22,13 @@ const TESTIMONIALS: Testimonial[] = [
     rating: 5,
   },
   {
-    quote:
-      "I found the perfect painting for my studio. Fast delivery and beautiful packaging.",
+    quote: "I found the perfect painting for my studio. Fast delivery and beautiful packaging.",
     name: "Omar K.",
     title: "Creative Director",
     rating: 5,
   },
   {
-    quote:
-      "Authentic, original works that elevate our gallery wall—highly recommend.",
+    quote: "Authentic, original works that elevate our gallery wall—highly recommend.",
     name: "Sara B.",
     title: "Homeowner",
     rating: 4,
@@ -86,7 +84,10 @@ export default function Testimonials({ id = "testimonials" }: { id?: string }) {
   const x = useMotionValue(0);
   const [index, setIndex] = useState(0);
   const positionsRef = useRef<number[]>([]);
-  const [constraints, setConstraints] = useState<{ left: number; right: number }>({ left: 0, right: 0 });
+  const [constraints, setConstraints] = useState<{ left: number; right: number }>({
+    left: 0,
+    right: 0,
+  });
 
   // Measure and center cards
   useEffect(() => {
@@ -122,96 +123,106 @@ export default function Testimonials({ id = "testimonials" }: { id?: string }) {
 
         {/* Desktop grid */}
         <Reveal>
-        <div className="hidden md:grid grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1], delay: i * 0.05 }}
-            >
-              <TestimonialCard t={t} />
-            </motion.div>
-          ))}
-        </div>
+          <div className="hidden md:grid grid-cols-3 gap-6">
+            {TESTIMONIALS.map((t, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1], delay: i * 0.05 }}
+              >
+                <TestimonialCard t={t} />
+              </motion.div>
+            ))}
+          </div>
         </Reveal>
 
         {/* Mobile carousel */}
         <Reveal>
-        <div className="md:hidden relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-linear-to-r from-background to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background to-transparent" />
+          <div className="md:hidden relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-linear-to-r from-background to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background to-transparent" />
 
-          <div className="overflow-hidden py-3" ref={viewportRef}>
-            <motion.div
-              ref={scrollerRef}
-              className="flex gap-6 pb-2 cursor-grab select-none"
-              drag="x"
-              dragElastic={0.04}
-              dragConstraints={constraints}
-              style={{ x, cursor: "grab" }}
-              onDragEnd={(_, info) => {
-                const positions = positionsRef.current;
-                if (!positions.length) return;
-                const viewport = viewportRef.current;
-                const node = scrollerRef.current;
-                const children = node ? (Array.from(node.children) as HTMLElement[]) : [];
-                const viewportWidth = viewport?.clientWidth ?? 0;
-                const itemWidth = children[0]?.clientWidth ?? 0;
-                const centerOffset = itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
-                const currentX = x.get();
-                const leftNow = centerOffset - currentX;
-                const predictedLeft = leftNow - info.velocity.x * 0.2;
-                let nearestIndex = 0;
-                let nearestDist = Infinity;
-                positions.forEach((pos, i) => {
-                  const d = Math.abs(pos - predictedLeft);
-                  if (d < nearestDist) {
-                    nearestDist = d;
-                    nearestIndex = i;
-                  }
-                });
-                setIndex(nearestIndex);
-                const target = positions[nearestIndex] ?? 0;
-                animate(x, -(target - centerOffset), { type: "spring", stiffness: 170, damping: 26 });
-              }}
-            >
-              {TESTIMONIALS.map((t, i) => (
-                <motion.div
-                  key={i}
-                  className="shrink-0 w-[85%]"
-                  animate={i === index ? { scale: 1.03, rotateZ: 0.2 } : { scale: 1, rotateZ: 0 }}
-                  transition={{ type: "spring", stiffness: 220, damping: 26 }}
-                >
-                  <TestimonialCard t={t} />
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* Dots */}
-          <div className="mt-4 flex items-center justify-center gap-2">
-            {TESTIMONIALS.map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Go to testimonial ${i + 1}`}
-                onClick={() => {
-                  setIndex(i);
-                  const targetLeft = positionsRef.current[i] ?? 0;
+            <div className="overflow-hidden py-3" ref={viewportRef}>
+              <motion.div
+                ref={scrollerRef}
+                className="flex gap-6 pb-2 cursor-grab select-none"
+                drag="x"
+                dragElastic={0.04}
+                dragConstraints={constraints}
+                style={{ x, cursor: "grab" }}
+                onDragEnd={(_, info) => {
+                  const positions = positionsRef.current;
+                  if (!positions.length) return;
                   const viewport = viewportRef.current;
                   const node = scrollerRef.current;
                   const children = node ? (Array.from(node.children) as HTMLElement[]) : [];
                   const viewportWidth = viewport?.clientWidth ?? 0;
                   const itemWidth = children[0]?.clientWidth ?? 0;
-                  const centerOffset = itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
-                  animate(x, -(targetLeft - centerOffset), { type: "spring", stiffness: 170, damping: 26 });
+                  const centerOffset =
+                    itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
+                  const currentX = x.get();
+                  const leftNow = centerOffset - currentX;
+                  const predictedLeft = leftNow - info.velocity.x * 0.2;
+                  let nearestIndex = 0;
+                  let nearestDist = Infinity;
+                  positions.forEach((pos, i) => {
+                    const d = Math.abs(pos - predictedLeft);
+                    if (d < nearestDist) {
+                      nearestDist = d;
+                      nearestIndex = i;
+                    }
+                  });
+                  setIndex(nearestIndex);
+                  const target = positions[nearestIndex] ?? 0;
+                  animate(x, -(target - centerOffset), {
+                    type: "spring",
+                    stiffness: 170,
+                    damping: 26,
+                  });
                 }}
-                className={`h-2.5 rounded-full ${i === index ? "bg-primary w-6" : "bg-muted w-2.5 hover:bg-accent"}`}
-              />
-            ))}
+              >
+                {TESTIMONIALS.map((t, i) => (
+                  <motion.div
+                    key={i}
+                    className="shrink-0 w-[85%]"
+                    animate={i === index ? { scale: 1.03, rotateZ: 0.2 } : { scale: 1, rotateZ: 0 }}
+                    transition={{ type: "spring", stiffness: 220, damping: 26 }}
+                  >
+                    <TestimonialCard t={t} />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </div>
+
+            {/* Dots */}
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {TESTIMONIALS.map((_, i) => (
+                <button
+                  key={i}
+                  aria-label={`Go to testimonial ${i + 1}`}
+                  onClick={() => {
+                    setIndex(i);
+                    const targetLeft = positionsRef.current[i] ?? 0;
+                    const viewport = viewportRef.current;
+                    const node = scrollerRef.current;
+                    const children = node ? (Array.from(node.children) as HTMLElement[]) : [];
+                    const viewportWidth = viewport?.clientWidth ?? 0;
+                    const itemWidth = children[0]?.clientWidth ?? 0;
+                    const centerOffset =
+                      itemWidth > 0 ? Math.max(0, (viewportWidth - itemWidth) / 2) : 0;
+                    animate(x, -(targetLeft - centerOffset), {
+                      type: "spring",
+                      stiffness: 170,
+                      damping: 26,
+                    });
+                  }}
+                  className={`h-2.5 rounded-full ${i === index ? "bg-primary w-6" : "bg-muted w-2.5 hover:bg-accent"}`}
+                />
+              ))}
+            </div>
           </div>
-        </div>
         </Reveal>
       </div>
     </section>

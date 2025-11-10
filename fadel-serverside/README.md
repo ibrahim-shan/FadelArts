@@ -21,14 +21,17 @@ npm run dev
 API will listen on `http://localhost:${PORT}` (default 4000).
 
 Health check:
+
 - `GET /api/health` → `{ ok, uptime, mongo }`
 
 ## Scripts
+
 - `npm run dev` — run with ts-node-dev (auto-reload)
 - `npm run build` — compile TypeScript to `dist/`
 - `npm start` — run compiled server
 
 ## Structure
+
 ```
 src/
   config/env.ts        # env parsing (zod)
@@ -41,6 +44,7 @@ src/
 ```
 
 ## Next steps
+
 - Add auth (JWT) and users collection
 - Add product, category, order models + routes
 - Request validation with Zod per route

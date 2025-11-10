@@ -15,7 +15,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${apiBase}/api/auth/me`, { credentials: "include", cache: "no-store" });
+        const res = await fetch(`${apiBase}/api/auth/me`, {
+          credentials: "include",
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("unauthorized");
         const data = await res.json();
         if (active && data?.ok) setEmail(data.admin?.email ?? null);
@@ -53,7 +56,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen grid grid-cols-[240px_1fr] grid-rows-[56px_1fr]">
       {/* Sidebar */}
       <aside className="row-span-2 bg-sidebar border-r border-sidebar-border">
-        <div className="h-14 flex items-center px-4 font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
+        <div
+          className="h-14 flex items-center px-4 font-semibold"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
           Admin
         </div>
         <nav className="px-3 space-y-1">
@@ -71,13 +77,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Topbar */}
       <header className="col-start-2 h-14 border-b flex items-center justify-between px-4 bg-background/80 backdrop-blur">
         <div className="text-sm text-muted-foreground">Signed in as {email ?? ""}</div>
-        <Button variant="outline" size="sm" onClick={logout}>Logout</Button>
+        <Button variant="outline" size="sm" onClick={logout}>
+          Logout
+        </Button>
       </header>
 
       {/* Main content */}
-      <main className="col-start-2 p-6">
-        {children}
-      </main>
+      <main className="col-start-2 p-6">{children}</main>
     </div>
   );
 }

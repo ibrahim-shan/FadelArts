@@ -38,8 +38,7 @@ export function ProductCard({
   className,
   href,
 }: ProductCardProps) {
-  const toNum = (v: number | string | undefined) =>
-    typeof v === "string" ? Number(v) : v;
+  const toNum = (v: number | string | undefined) => (typeof v === "string" ? Number(v) : v);
   const current = toNum(price);
   const compare = toNum(compareAtPrice);
   const onSale =
@@ -102,9 +101,7 @@ export function ProductCard({
         >
           {title}
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground font-light">
-          {artist}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground font-light">{artist}</p>
         {onSale ? (
           <div className="mt-2 flex items-baseline justify-center gap-2">
             <span className="text-base font-semibold text-primary">

@@ -5,9 +5,33 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 // shadcn components to install
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Variant = {
   _id: string;
@@ -34,7 +58,15 @@ export default function VariantsPage() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
-  const parseValues = (raw: string) => Array.from(new Set(raw.split(",").map((v) => v.trim()).filter(Boolean)));
+  const parseValues = (raw: string) =>
+    Array.from(
+      new Set(
+        raw
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean),
+      ),
+    );
 
   async function fetchData(signal?: AbortSignal) {
     setLoading(true);
@@ -108,7 +140,10 @@ export default function VariantsPage() {
 
   async function deleteVariant(id: string) {
     try {
-      const res = await fetch(`${apiBase}/api/variants/${id}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${apiBase}/api/variants/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to delete");
       setPendingDelete(null);
@@ -125,11 +160,21 @@ export default function VariantsPage() {
           <Input
             placeholder="Search variants..."
             value={q}
-            onChange={(e) => { setPage(1); setQ(e.target.value); }}
+            onChange={(e) => {
+              setPage(1);
+              setQ(e.target.value);
+            }}
             className="w-full sm:w-[280px]"
           />
         </div>
-        <Button onClick={() => { resetForm(); setAddOpen(true); }}>Add Variant</Button>
+        <Button
+          onClick={() => {
+            resetForm();
+            setAddOpen(true);
+          }}
+        >
+          Add Variant
+        </Button>
       </div>
 
       <div className="rounded-xl border overflow-hidden">
@@ -148,7 +193,10 @@ export default function VariantsPage() {
                 <TableCell>
                   <div className="flex flex-wrap gap-2">
                     {v.values.map((val, i) => (
-                      <span key={i} className="rounded-full border px-2 py-0.5 text-xs bg-accent/30">
+                      <span
+                        key={i}
+                        className="rounded-full border px-2 py-0.5 text-xs bg-accent/30"
+                      >
                         {val}
                       </span>
                     ))}
@@ -167,13 +215,17 @@ export default function VariantsPage() {
                   >
                     Edit
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => setPendingDelete(v)}>Delete</Button>
+                  <Button variant="destructive" size="sm" onClick={() => setPendingDelete(v)}>
+                    Delete
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
             {!loading && items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-10">No variants found</TableCell>
+                <TableCell colSpan={3} className="text-center text-muted-foreground py-10">
+                  No variants found
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -183,9 +235,25 @@ export default function VariantsPage() {
       <div className="flex items-center justify-between text-sm">
         <div className="text-muted-foreground">{loading ? "Loading..." : `${total} total`}</div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-          <span className="text-muted-foreground">Page {page} of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
         </div>
       </div>
 
@@ -194,16 +262,26 @@ export default function VariantsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Variant</DialogTitle>
-            <DialogDescription>Define a product option with multiple values (e.g., Size: S, M, L).</DialogDescription>
+            <DialogDescription>
+              Define a product option with multiple values (e.g., Size: S, M, L).
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label className="mb-1 block text-sm">Name</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Size" />
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g., Size"
+              />
             </div>
             <div>
               <Label className="mb-1 block text-sm">Values (comma separated)</Label>
-              <Input value={formValuesRaw} onChange={(e) => setFormValuesRaw(e.target.value)} placeholder="e.g., S, M, L" />
+              <Input
+                value={formValuesRaw}
+                onChange={(e) => setFormValuesRaw(e.target.value)}
+                placeholder="e.g., S, M, L"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -216,7 +294,13 @@ export default function VariantsPage() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={(v) => { if (!v) setEditItem(null); setEditOpen(v); }}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(v) => {
+          if (!v) setEditItem(null);
+          setEditOpen(v);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Variant</DialogTitle>
@@ -247,12 +331,16 @@ export default function VariantsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete variant?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the variant "{pendingDelete?.name}".
+              This action cannot be undone. This will permanently delete the variant "
+              {pendingDelete?.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pendingDelete && deleteVariant(pendingDelete._id)} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={() => pendingDelete && deleteVariant(pendingDelete._id)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -261,4 +349,3 @@ export default function VariantsPage() {
     </div>
   );
 }
-

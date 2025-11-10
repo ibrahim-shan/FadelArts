@@ -16,7 +16,13 @@ const variants: Variants = {
   show: { opacity: 1, y: 0 },
 };
 
-export default function Reveal({ children, className, as = "div", delay = 0, mode = "inview" }: RevealProps) {
+export default function Reveal({
+  children,
+  className,
+  as = "div",
+  delay = 0,
+  mode = "inview",
+}: RevealProps) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
@@ -43,11 +49,7 @@ export default function Reveal({ children, className, as = "div", delay = 0, mod
   }
 
   return (
-    <Comp
-      {...common}
-      whileInView="show"
-      viewport={{ once: true, amount: 0.2 }}
-    >
+    <Comp {...common} whileInView="show" viewport={{ once: true, amount: 0.2 }}>
       {children}
     </Comp>
   );

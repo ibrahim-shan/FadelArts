@@ -158,9 +158,18 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-body), system-ui, -apple-system, Segoe UI, Roboto,
-      Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol", sans-serif;
+    font-family:
+      var(--font-body),
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      Arial,
+      "Noto Sans",
+      "Apple Color Emoji",
+      "Segoe UI Emoji",
+      "Segoe UI Symbol",
+      sans-serif;
   }
   /* Hide site chrome on admin pages */
   body[data-admin="true"] header,
@@ -273,7 +282,8 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 0.625rem 0.75rem;
-    transition: border-color var(--duration-1) var(--easing),
+    transition:
+      border-color var(--duration-1) var(--easing),
       box-shadow var(--duration-1) var(--easing);
   }
   input::placeholder,

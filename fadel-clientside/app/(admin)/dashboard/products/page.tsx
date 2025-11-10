@@ -35,11 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -67,6 +63,7 @@ type Product = {
   description?: string;
   categories?: string[];
   variants?: { name: string; values: string[] }[];
+  styles?: string[];
   sku?: string;
   barcode?: string;
   year?: number;
@@ -96,26 +93,25 @@ export default function ProductsPage() {
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+
   // *** 2. ADD NEW STATE FOR STAGED FILES (FOR CREATE DIALOG) ***
   const [createImageFiles, setCreateImageFiles] = useState<File[]>([]);
 
   const [categories, setCategories] = useState<string[]>([]);
-  const [variants, setVariants] = useState<
-    { name: string; values: string[] }[]
-  >([]);
+  const [variants, setVariants] = useState<{ name: string; values: string[] }[]>([]);
   const [year, setYear] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
-  const [allCategories, setAllCategories] = useState<
-    { _id: string; name: string }[]
-  >([]);
-  const [allVariants, setAllVariants] = useState<
-    { _id: string; name: string; values: string[] }[]
-  >([]);
-
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / pageSize)),
-    [total]
+  const [allCategories, setAllCategories] = useState<{ _id: string; name: string }[]>([]);
+  const [allVariants, setAllVariants] = useState<{ _id: string; name: string; values: string[] }[]>(
+    [],
   );
+  // Styles (single select, required)
+  const [allStyles, setAllStyles] = useState<{ _id: string; name: string }[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<string>("");
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
   // Lookup map for category id -> name for display in View dialog
   const categoryNameById = useMemo(() => {
@@ -123,6 +119,55 @@ export default function ProductsPage() {
     allCategories.forEach((c) => m.set(c._id, c.name));
     return m;
   }, [allCategories]);
+
+  async function deleteImageFromSupabase(imageUrl: string | undefined) {
+    if (!imageUrl) return;
+    const bucketName = "products";
+    const pathPrefix = `/${bucketName}/`;
+    const pathIndex = imageUrl.indexOf(pathPrefix);
+    if (pathIndex === -1) {
+      console.warn("Could not determine image path from URL:", imageUrl);
+      return;
+    }
+    const imagePath = imageUrl.substring(pathIndex + pathPrefix.length);
+    if (!imagePath) {
+      console.warn("Extracted image path is empty:", imageUrl);
+      return;
+    }
+    try {
+      const { error } = await supabase.storage.from(bucketName).remove([imagePath]);
+      if (error) {
+        console.warn("Failed to delete image from Supabase:", error.message);
+      }
+    } catch (e: any) {
+      console.warn("Error during Supabase image deletion:", e.message);
+    }
+  }
+
+  async function uploadImages(files: File[], pathPrefix: string): Promise<string[]> {
+    if (!files.length) return [];
+
+    const bucket = "products";
+    const uploadPromises = files.map(async (file, idx) => {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const key = `${pathPrefix}/${Date.now()}_${idx}_${safeName}`;
+
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(key, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      }
+
+      const { data } = supabase.storage.from(bucket).getPublicUrl(key);
+      return data.publicUrl;
+    });
+
+    return Promise.all(uploadPromises);
+  }
 
   async function fetchData(signal?: AbortSignal) {
     setLoading(true);
@@ -136,8 +181,7 @@ export default function ProductsPage() {
         signal,
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok)
-        throw new Error(data?.error || "Failed to load products");
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load products");
       setItems(data.items);
       setTotal(data.total);
     } catch (e) {
@@ -166,18 +210,27 @@ export default function ProductsPage() {
             credentials: "include",
           }).then((r) => r.json()),
         ]);
-        if (cs?.ok)
-          setAllCategories(
-            cs.items.map((c: any) => ({ _id: c._id, name: c.name }))
-          );
+        if (cs?.ok) setAllCategories(cs.items.map((c: any) => ({ _id: c._id, name: c.name })));
         if (vs?.ok)
           setAllVariants(
             vs.items.map((v: any) => ({
               _id: v._id,
               name: v.name,
               values: v.values,
-            }))
+            })),
           );
+      } catch {}
+    })();
+  }, [apiBase]);
+
+  // fetch styles for create form (single-select)
+  useEffect(() => {
+    (async () => {
+      try {
+        const st = await fetch(`${apiBase}/api/styles?pageSize=100`, {
+          credentials: "include",
+        }).then((r) => r.json());
+        if (st?.ok) setAllStyles(st.items.map((s: any) => ({ _id: s._id, name: s.name })));
       } catch {}
     })();
   }, [apiBase]);
@@ -190,14 +243,16 @@ export default function ProductsPage() {
     setDescription("");
     setImages([]);
     setCreateImageFiles([]); // *** 3. RESET STAGED FILES ***
+    setEditImageFiles([]);
     setCategories([]);
     setVariants([]);
     setYear("");
     setQuantity("");
     setFormError(null);
+    setSelectedStyle("");
   };
 
-  const populateFrom = (p: any) => {
+  const populateFrom = (p: Product) => {
     setTitle(p.title ?? "");
     setArtist(p.artist ?? "");
     setPrice(typeof p.price === "number" ? String(p.price) : "");
@@ -206,8 +261,10 @@ export default function ProductsPage() {
     setImages(Array.isArray(p.images) ? p.images : []);
     setCategories(Array.isArray(p.categories) ? p.categories : []);
     setVariants(Array.isArray(p.variants) ? p.variants : []);
+    setSelectedStyle(Array.isArray(p.styles) && p.styles.length ? p.styles[0] : "");
     setYear(typeof p.year === "number" ? String(p.year) : "");
     setQuantity(typeof p.inventory === "number" ? String(p.inventory) : "");
+    setEditImageFiles([]); // <-- ADD THIS
   };
 
   // *** 4. ADD HANDLERS FOR STAGING/REMOVING FILES ***
@@ -222,15 +279,28 @@ export default function ProductsPage() {
     setCreateImageFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
+  const handleEditImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setEditImageFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    }
+  };
+
+  const handleEditStagedImageRemove = (index: number) => {
+    setEditImageFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+  };
+
+  const handleEditExistingImageRemove = (imageUrl: string) => {
+    setImages((prevImages) => prevImages.filter((url) => url !== imageUrl));
+  };
+
   async function createProduct() {
     // Client-side required validation
     if (!title.trim()) return setFormError("Title is required");
     if (!artist.trim()) return setFormError("Artist is required");
     if (!price || Number(price) <= 0) return setFormError("Price is required");
-    if (!shortDescription.trim())
-      return setFormError("Short description is required");
-    if (!description.trim())
-      return setFormError("Full description is required");
+    if (!shortDescription.trim()) return setFormError("Short description is required");
+    if (!description.trim()) return setFormError("Full description is required");
 
     // *** 5. MODIFY createProduct TO UPLOAD FILES FIRST ***
 
@@ -238,17 +308,16 @@ export default function ProductsPage() {
     if (createImageFiles.length === 0) {
       return setFormError("At least one image is required");
     }
-    if (!year || Number.isNaN(Number(year)))
-      return setFormError("Year is required");
-    if (!quantity || Number.isNaN(Number(quantity)))
-      return setFormError("Quantity is required");
-    if (categories.length === 0)
-      return setFormError("Select at least one category");
+    if (!year || Number.isNaN(Number(year))) return setFormError("Year is required");
+    if (!quantity || Number.isNaN(Number(quantity))) return setFormError("Quantity is required");
+    if (categories.length === 0) return setFormError("Select at least one category");
+    if (!selectedStyle) return setFormError("Style is required");
 
     setFormError(null);
-    setLoading(true); // Use loading state for button
+    setLoadingAction(true);
 
     let uploadedImageUrls: string[] = [];
+
     const pathPrefix = `${Date.now()}`;
     const bucket = "products";
 
@@ -258,18 +327,14 @@ export default function ProductsPage() {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const key = `${pathPrefix}/${Date.now()}_${idx}_${safeName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(key, file, {
-            cacheControl: "3600",
-            upsert: true,
-            contentType: file.type,
-          });
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(key, file, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: file.type,
+        });
 
         if (uploadError) {
-          throw new Error(
-            `Failed to upload ${file.name}: ${uploadError.message}`
-          );
+          throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
         }
 
         const { data } = supabase.storage.from(bucket).getPublicUrl(key);
@@ -292,6 +357,7 @@ export default function ProductsPage() {
           images: uploadedImageUrls, // Send the new URLs
           categories,
           variants,
+          styles: selectedStyle ? [selectedStyle] : [],
           year: year ? Number(year) : undefined,
           inventory: quantity ? Number(quantity) : undefined,
           published: true,
@@ -300,7 +366,10 @@ export default function ProductsPage() {
 
       const data = await res.json();
       if (!res.ok || !data?.ok) {
-        // In a real app, you might want to delete the uploaded images here
+        // *** ADDED THIS CLEANUP BLOCK ***
+        if (uploadedImageUrls.length > 0) {
+          await Promise.all(uploadedImageUrls.map(deleteImageFromSupabase));
+        }
         throw new Error(data?.error || "Failed to create product in database");
       }
 
@@ -311,13 +380,25 @@ export default function ProductsPage() {
     } catch (e: any) {
       setFormError(e?.message || "Failed to create product");
     } finally {
-      setLoading(false); // Hide loading state
+      setLoadingAction(false); // Hide loading state
     }
   }
 
   async function updateProductSubmit() {
     if (!editItem) return;
+
+    setLoadingAction(true);
+    setFormError(null);
+    const oldImageUrls = editItem.images || [];
+    let newUploadedUrls: string[] = [];
+
     try {
+      // 1. Upload any new staged files
+      newUploadedUrls = await uploadImages(editImageFiles, `${Date.now()}`);
+
+      // 2. Final list is existing URLs (from state) + new URLs
+      const finalImageUrls = [...images, ...newUploadedUrls];
+
       const res = await fetch(`${apiBase}/api/products/${editItem._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -328,21 +409,70 @@ export default function ProductsPage() {
           price: Number(price),
           shortDescription,
           description,
-          images, // Edit dialog still uses the 'images' state (string[])
+          images: finalImageUrls, // Send the final combined list
           categories,
           variants,
+          styles: selectedStyle ? [selectedStyle] : [],
           year: year ? Number(year) : undefined,
           inventory: quantity ? Number(quantity) : undefined,
         }),
       });
+
       const data = await res.json();
-      if (!res.ok || !data?.ok)
-        throw new Error(data?.error || "Failed to update");
+      if (!res.ok || !data?.ok) {
+        // DB update failed, clean up the images we just uploaded
+        if (newUploadedUrls.length > 0) {
+          await Promise.all(newUploadedUrls.map(deleteImageFromSupabase));
+        }
+        throw new Error(data?.error || "Failed to update product");
+      }
+
+      // 3. DB update was successful, clean up old images that were removed
+      // Find URLs that were in the original list but are NOT in the final list
+      const imagesToDelete = oldImageUrls.filter((url) => !finalImageUrls.includes(url));
+      if (imagesToDelete.length > 0) {
+        await Promise.all(imagesToDelete.map(deleteImageFromSupabase));
+      }
+
       setEditOpen(false);
       setEditItem(null);
+      resetCreate(); // Use resetCreate to clear all form state
       await fetchData();
     } catch (e: any) {
-      alert(e?.message || "Failed to update product");
+      setFormError(e?.message || "Failed to update product");
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  async function deleteProduct() {
+    if (!pendingDelete) return;
+
+    setLoadingAction(true);
+    const productToDelete = pendingDelete;
+    setPendingDelete(null); // Close dialog immediately
+
+    try {
+      // 1. Delete product from database
+      const res = await fetch(`${apiBase}/api/products/${productToDelete._id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok)
+        throw new Error(data?.error || "Failed to delete product from database");
+
+      // 2. Database delete was successful, delete all associated images
+      const imagesToDelete = productToDelete.images || [];
+      if (imagesToDelete.length > 0) {
+        await Promise.all(imagesToDelete.map(deleteImageFromSupabase));
+      }
+
+      await fetchData(); // Refresh list
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete product");
+    } finally {
+      setLoadingAction(false);
     }
   }
 
@@ -360,7 +490,15 @@ export default function ProductsPage() {
             }}
             className="w-full sm:w-[280px]"
           />
-          <Button onClick={() => { resetCreate(); setEditItem(null); setCreateOpen(true); }}>Add Product</Button>
+          <Button
+            onClick={() => {
+              resetCreate();
+              setEditItem(null);
+              setCreateOpen(true);
+            }}
+          >
+            Add Product
+          </Button>
         </div>
 
         <div className="rounded-xl border overflow-hidden">
@@ -378,9 +516,7 @@ export default function ProductsPage() {
               {items.map((p) => (
                 <TableRow key={p._id}>
                   <TableCell className="font-medium">{p.title}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {p.artist}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{p.artist}</TableCell>
                   <TableCell>${p.price}</TableCell>
                   <TableCell>
                     {p.published === false ? (
@@ -415,11 +551,7 @@ export default function ProductsPage() {
                     >
                       Edit
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setPendingDelete(p)}
-                    >
+                    <Button variant="destructive" size="sm" onClick={() => setPendingDelete(p)}>
                       Delete
                     </Button>
                   </TableCell>
@@ -427,10 +559,7 @@ export default function ProductsPage() {
               ))}
               {!loading && items.length === 0 && (
                 <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center text-muted-foreground py-10"
-                  >
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
                     No products found
                   </TableCell>
                 </TableRow>
@@ -440,9 +569,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex items-center justify-between text-sm">
-          <div className="text-muted-foreground">
-            {loading ? "Loading..." : `${total} total`}
-          </div>
+          <div className="text-muted-foreground">{loading ? "Loading..." : `${total} total`}</div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -478,9 +605,7 @@ export default function ProductsPage() {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>New Product</DialogTitle>
-            <DialogDescription>
-              Here You Can Create New Product
-            </DialogDescription>
+            <DialogDescription>Here You Can Create New Product</DialogDescription>
           </DialogHeader>
           <Tabs
             defaultValue="details"
@@ -540,11 +665,10 @@ export default function ProductsPage() {
                   accept="image/*"
                   onChange={handleImageSelect}
                   className="mb-4"
-                  disabled={loading}
+                  disabled={loadingAction}
                 />
                 <p className="text-xs text-muted-foreground mb-4">
-                  Images will be staged here. They will be uploaded when you
-                  click "Create".
+                  Images will be staged here. They will be uploaded when you click "Create".
                 </p>
                 {!!createImageFiles.length && (
                   <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -555,9 +679,7 @@ export default function ProductsPage() {
                             src={URL.createObjectURL(file)}
                             alt={`Preview ${file.name}`}
                             className="w-full h-full object-cover"
-                            onLoad={(e) =>
-                              URL.revokeObjectURL(e.currentTarget.src)
-                            }
+                            onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
                           />
                         </div>
                         <Button
@@ -567,7 +689,7 @@ export default function ProductsPage() {
                           className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
                           onClick={() => handleImageRemove(i)}
                           aria-label="Remove image"
-                          disabled={loading}
+                          disabled={loadingAction}
                         >
                           ×
                         </Button>
@@ -612,9 +734,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div>
-                  <Label className="mb-1 block text-sm">
-                    Short Description
-                  </Label>
+                  <Label className="mb-1 block text-sm">Short Description</Label>
                   <textarea
                     value={shortDescription}
                     onChange={(e) => setShortDescription(e.target.value)}
@@ -637,18 +757,52 @@ export default function ProductsPage() {
             </TabsContent>
 
             <TabsContent value="org" className="pt-4">
-              {/* ... (Organization tab content is unchanged) ... */}
+              {/* Organization */}
               <div className="grid gap-6">
+                {/* Style (single select, required) */}
+                <div className="space-y-2">
+                  <Label className="block text-sm">Style <span className="text-red-500">*</span></Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between">
+                        {selectedStyle || "Select a style"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                      <Command>
+                        <CommandInput placeholder="Search style..." />
+                        <CommandEmpty>No styles found.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup>
+                            {allStyles.map((s) => (
+                              <CommandItem
+                                key={s._id}
+                                value={s.name}
+                                onSelect={(val) => setSelectedStyle(val)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedStyle === s.name ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                {s.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div>
                   <Label className="mb-1 block text-sm">Categories</Label>
                   <div className="flex flex-wrap gap-3">
                     {allCategories.map((c) => {
                       const checked = categories.includes(c._id);
                       return (
-                        <label
-                          key={c._id}
-                          className="flex items-center gap-2 text-sm"
-                        >
+                        <label key={c._id} className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
                             className="size-4"
@@ -657,7 +811,7 @@ export default function ProductsPage() {
                               setCategories((prev) =>
                                 e.target.checked
                                   ? [...prev, c._id]
-                                  : prev.filter((id) => id !== c._id)
+                                  : prev.filter((id) => id !== c._id),
                               );
                             }}
                           />
@@ -677,9 +831,7 @@ export default function ProductsPage() {
                         setVariants((prev) => {
                           const idx = prev.findIndex((x) => x.name === v.name);
                           if (idx === -1)
-                            return next.length
-                              ? [...prev, { name: v.name, values: next }]
-                              : prev;
+                            return next.length ? [...prev, { name: v.name, values: next }] : prev;
                           const copy = [...prev];
                           if (!next.length) {
                             copy.splice(idx, 1);
@@ -691,9 +843,7 @@ export default function ProductsPage() {
                       };
                       return (
                         <div key={v._id} className="rounded-md border p-3">
-                          <div className="text-sm font-medium mb-1">
-                            {v.name}
-                          </div>
+                          <div className="text-sm font-medium mb-1">{v.name}</div>
                           <VariantMultiSelect
                             values={v.values}
                             selected={selected}
@@ -703,11 +853,7 @@ export default function ProductsPage() {
                           {!!selected.length && (
                             <div className="mt-2 flex flex-wrap gap-2">
                               {selected.map((val) => (
-                                <Badge
-                                  key={val}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
+                                <Badge key={val} variant="secondary" className="text-xs">
                                   {val}
                                 </Badge>
                               ))}
@@ -723,16 +869,14 @@ export default function ProductsPage() {
           </Tabs>
           {/* *** 7. UPDATE DIALOG FOOTER FOR ERROR AND LOADING STATE *** */}
           <DialogFooter>
-            {formError && (
-              <p className="text-destructive text-sm mr-auto">{formError}</p>
-            )}
+            {formError && <p className="text-destructive text-sm mr-auto">{formError}</p>}
             <DialogClose asChild>
-              <Button variant="outline" disabled={loading}>
+              <Button variant="outline" disabled={loadingAction}>
                 Cancel
               </Button>
             </DialogClose>
-            <Button onClick={createProduct} disabled={loading}>
-              {loading ? "Creating..." : "Create"}
+            <Button onClick={createProduct} disabled={loadingAction}>
+              {loadingAction ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -752,10 +896,14 @@ export default function ProductsPage() {
             <DialogDescription>Review product information.</DialogDescription>
           </DialogHeader>
           {viewItem && (
-            <div className="grid gap-6 md:grid-cols-2 max-h-[70vh] overflow-y-auto pr-1" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+            <div
+              className="grid gap-6 md:grid-cols-2 max-h-[70vh] overflow-y-auto pr-1"
+              data-lenis-prevent
+              data-lenis-prevent-wheel
+              data-lenis-prevent-touch
+            >
               <div className="space-y-3">
-                {Array.isArray(viewItem.images) &&
-                viewItem.images.length > 0 ? (
+                {Array.isArray(viewItem.images) && viewItem.images.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
                     {viewItem.images.slice(0, 4).map((u, i) => (
                       <div
@@ -778,43 +926,33 @@ export default function ProductsPage() {
 
               <div className="space-y-3">
                 <div>
-                  <h3
-                    className="font-semibold"
-                    style={{ fontFamily: "var(--font-heading)" }}
-                  >
+                  <h3 className="font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
                     {viewItem.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-                    By {viewItem.artist}
-                  </p>
+                  <p className="text-sm text-muted-foreground">By {viewItem.artist}</p>
                 </div>
                 <div className="text-sm">
                   <p>
-                    <span className="text-muted-foreground">Price:</span> $
-                    {viewItem.price}
+                    <span className="text-muted-foreground">Price:</span> ${viewItem.price}
                   </p>
                   {typeof viewItem.inventory === "number" && (
                     <p>
-                      <span className="text-muted-foreground">Quantity:</span>{" "}
-                      {viewItem.inventory}
+                      <span className="text-muted-foreground">Quantity:</span> {viewItem.inventory}
                     </p>
                   )}
                   {viewItem.year && (
                     <p>
-                      <span className="text-muted-foreground">Year:</span>{" "}
-                      {viewItem.year}
+                      <span className="text-muted-foreground">Year:</span> {viewItem.year}
                     </p>
                   )}
                   {viewItem.sku && (
                     <p>
-                      <span className="text-muted-foreground">SKU:</span>{" "}
-                      {viewItem.sku}
+                      <span className="text-muted-foreground">SKU:</span> {viewItem.sku}
                     </p>
                   )}
                   {viewItem.barcode && (
                     <p>
-                      <span className="text-muted-foreground">Barcode:</span>{" "}
-                      {viewItem.barcode}
+                      <span className="text-muted-foreground">Barcode:</span> {viewItem.barcode}
                     </p>
                   )}
                   <p>
@@ -829,46 +967,37 @@ export default function ProductsPage() {
                 )}
                 {viewItem.description && (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <p className="text-sm text-muted-foreground">
-                      {viewItem.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{viewItem.description}</p>
                   </div>
                 )}
-                {Array.isArray(viewItem.categories) &&
-                  viewItem.categories.length > 0 && (
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Categories:</span>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {viewItem.categories.map((c) => {
-                          const name = categoryNameById.get(c) ?? c;
-                          return (
-                            <span
-                              key={c}
-                              className="rounded-full border px-2 py-0.5 text-xs"
-                            >
-                              {name}
-                            </span>
-                          );
-                        })}
-                      </div>
+                {Array.isArray(viewItem.categories) && viewItem.categories.length > 0 && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Categories:</span>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {viewItem.categories.map((c) => {
+                        const name = categoryNameById.get(c) ?? c;
+                        return (
+                          <span key={c} className="rounded-full border px-2 py-0.5 text-xs">
+                            {name}
+                          </span>
+                        );
+                      })}
                     </div>
-                  )}
-                {Array.isArray(viewItem.variants) &&
-                  viewItem.variants.length > 0 && (
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Variants:</span>
-                      <div className="mt-1 space-y-1">
-                        {viewItem.variants.map((v) => (
-                          <div key={v.name}>
-                            <span className="font-medium">{v.name}:</span>{" "}
-                            <span className="text-muted-foreground">
-                              {v.values.join(", ")}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                  </div>
+                )}
+                {Array.isArray(viewItem.variants) && viewItem.variants.length > 0 && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Variants:</span>
+                    <div className="mt-1 space-y-1">
+                      {viewItem.variants.map((v) => (
+                        <div key={v.name}>
+                          <span className="font-medium">{v.name}:</span>{" "}
+                          <span className="text-muted-foreground">{v.values.join(", ")}</span>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -893,22 +1022,58 @@ export default function ProductsPage() {
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>Update product information.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 max-h-[70vh] overflow-y-auto pr-1" data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch>
+          <div
+            className="grid gap-4 max-h-[70vh] overflow-y-auto pr-1"
+            data-lenis-prevent
+            data-lenis-prevent-wheel
+            data-lenis-prevent-touch
+          >
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
                 <Label className="mb-1 block text-sm">Title</Label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} />
               </div>
               <div>
                 <Label className="mb-1 block text-sm">Artist</Label>
-                <Input
-                  value={artist}
-                  onChange={(e) => setArtist(e.target.value)}
-                />
+                <Input value={artist} onChange={(e) => setArtist(e.target.value)} />
               </div>
+            </div>
+            {/* Style (single select) */}
+            <div className="space-y-2">
+              <Label className="block text-sm">Style <span className="text-red-500">*</span></Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between">
+                    {selectedStyle || "Select a style"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+                  <Command>
+                    <CommandInput placeholder="Search style..." />
+                    <CommandEmpty>No styles found.</CommandEmpty>
+                    <CommandList>
+                      <CommandGroup>
+                        {allStyles.map((s) => (
+                          <CommandItem
+                            key={s._id}
+                            value={s.name}
+                            onSelect={(val) => setSelectedStyle(val)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedStyle === s.name ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            {s.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
@@ -963,25 +1128,67 @@ export default function ProductsPage() {
               />
             </div>
             <div>
-              <Label className="mb-1 block text-sm">Images</Label>
-              <ImageUploader
-                value={images}
-                onChange={setImages}
-                bucket="products"
-                pathPrefix={`${Date.now()}`}
-              />
+                            <Label className="mb-1 block text-sm">Images</Label>
+              {/* List of EXISTING images */}
               {!!images.length && (
+                <div className="mb-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {images.map((url) => (
+                    <div key={url} className="relative group">
+                      <div className="relative aspect-4/3 overflow-hidden rounded border">
+                        <img
+                          src={url}
+                          alt="Existing product image"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon-sm"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={() => handleEditExistingImageRemove(url)}
+                        aria-label="Remove existing image"
+                        disabled={loadingAction}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Input for NEW images */}
+              <Input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleEditImageSelect}
+                className="mb-4"
+                disabled={loadingAction}
+              />
+              {/* List of NEWLY STAGED images */}
+              {!!editImageFiles.length && (
                 <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                  {images.map((u, i) => (
-                    <div
-                      key={i}
-                      className="relative aspect-4/3 overflow-hidden rounded"
-                    >
-                      <img
-                        src={u}
-                        alt={`Image ${i + 1}`}
-                        className="w-full h-full object-cover"
-                      />
+                  {editImageFiles.map((file, i) => (
+                    <div key={i} className="relative group">
+                      <div className="relative aspect-4/3 overflow-hidden rounded border">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Preview ${file.name}`}
+                          className="w-full h-full object-cover"
+                          onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon-sm"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={() => handleEditStagedImageRemove(i)}
+                        aria-label="Remove image"
+                        disabled={loadingAction}
+                      >
+                        ×
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -993,19 +1200,14 @@ export default function ProductsPage() {
                 {allCategories.map((c) => {
                   const checked = categories.includes(c._id);
                   return (
-                    <label
-                      key={c._id}
-                      className="flex items-center gap-2 text-sm"
-                    >
+                    <label key={c._id} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         className="size-4"
                         checked={checked}
                         onChange={(e) => {
                           setCategories((prev) =>
-                            e.target.checked
-                              ? [...prev, c._id]
-                              : prev.filter((id) => id !== c._id)
+                            e.target.checked ? [...prev, c._id] : prev.filter((id) => id !== c._id),
                           );
                         }}
                       />
@@ -1025,9 +1227,7 @@ export default function ProductsPage() {
                     setVariants((prev) => {
                       const idx = prev.findIndex((x) => x.name === v.name);
                       if (idx === -1)
-                        return next.length
-                          ? [...prev, { name: v.name, values: next }]
-                          : prev;
+                        return next.length ? [...prev, { name: v.name, values: next }] : prev;
                       const copy = [...prev];
                       if (!next.length) {
                         copy.splice(idx, 1);
@@ -1056,46 +1256,30 @@ export default function ProductsPage() {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={updateProductSubmit}>Save changes</Button>
+            <Button onClick={updateProductSubmit} disabled={loadingAction}>
+              {loadingAction ? "Saving..." : "Save changes"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Product Confirm (Unchanged) */}
-      <AlertDialog
-        open={!!pendingDelete}
-        onOpenChange={(v) => !v && setPendingDelete(null)}
-      >
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => !v && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete product?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete "
-              {pendingDelete?.title}".
+              This action cannot be undone. This will permanently delete "{pendingDelete?.title}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={async () => {
-                if (!pendingDelete) return;
-                try {
-                  const res = await fetch(
-                    `${apiBase}/api/products/${pendingDelete._id}`,
-                    { method: "DELETE", credentials: "include" }
-                  );
-                  const data = await res.json().catch(() => ({}));
-                  if (!res.ok || !data?.ok)
-                    throw new Error(data?.error || "Failed to delete");
-                  setPendingDelete(null);
-                  await fetchData();
-                } catch (e: any) {
-                  alert(e?.message || "Failed to delete");
-                }
-              }}
+              onClick={deleteProduct}
+              disabled={loadingAction}
             >
-              Delete
+              {loadingAction ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1119,9 +1303,7 @@ function VariantMultiSelect({
   const [open, setOpen] = useState(false);
   const toggle = (val: string) => {
     const exists = selected.includes(val);
-    const next = exists
-      ? selected.filter((v) => v !== val)
-      : [...selected, val];
+    const next = exists ? selected.filter((v) => v !== val) : [...selected, val];
     onChange(next);
   };
   const buttonLabel = selected.length
@@ -1151,16 +1333,10 @@ function VariantMultiSelect({
                 return (
                   <CommandItem key={val} onSelect={() => toggle(val)}>
                     <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        isSelected ? "opacity-100" : "opacity-0"
-                      )}
+                      className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")}
                     />
                     <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggle(val)}
-                      />
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggle(val)} />
                       <span>{val}</span>
                     </div>
                   </CommandItem>

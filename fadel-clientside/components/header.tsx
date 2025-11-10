@@ -14,11 +14,12 @@ function useTheme() {
 
   useEffect(() => {
     // Initialize theme from localStorage or system preference
-    const stored = (typeof window !== "undefined" &&
-      localStorage.getItem("theme")) as "light" | "dark" | null;
+    const stored = (typeof window !== "undefined" && localStorage.getItem("theme")) as
+      | "light"
+      | "dark"
+      | null;
     const prefersDark =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
+      window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initial = stored ?? (prefersDark ? "dark" : "light");
     document.documentElement.classList.toggle("dark", initial === "dark");
     setTheme(initial);
@@ -87,22 +88,15 @@ export default function Header() {
           className="flex items-center gap-2 group cursor-pointer"
           aria-label="Fadel Art Home"
         >
-          <span
-            className="text-xl font-semibold"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          <span className="text-xl font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
             Fadel Art
           </span>
         </a>
 
         {/* Middle: Nav Links (desktop) */}
-        <nav
-          aria-label="Main navigation"
-          className="hidden md:flex items-center gap-6"
-        >
+        <nav aria-label="Main navigation" className="hidden md:flex items-center gap-6">
           {links.map((link) => {
-            const key =
-              (link as any).href ?? (link as any).scrollTo ?? link.label;
+            const key = (link as any).href ?? (link as any).scrollTo ?? link.label;
             if ((link as any).href) {
               return (
                 <Link
@@ -165,11 +159,7 @@ export default function Header() {
             className="h-9 w-9 inline-flex items-center justify-center rounded-full hover:bg-muted text-foreground transition-base"
             aria-label="Toggle dark mode"
           >
-            {theme === "dark" ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </motion.button>
           {/* Mobile menu button (after toggle) */}
           <motion.button
@@ -186,11 +176,7 @@ export default function Header() {
       {/* Header search bar (slides under header) */}
       <motion.div
         initial={false}
-        animate={
-          searchOpen
-            ? { height: "auto", opacity: 1 }
-            : { height: 0, opacity: 0 }
-        }
+        animate={searchOpen ? { height: "auto", opacity: 1 } : { height: 0, opacity: 0 }}
         transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
         className="overflow-hidden border-t border-border"
       >
@@ -247,10 +233,7 @@ export default function Header() {
               <div className="mt-10 flex-1 grid place-items-center">
                 <ul className="text-center space-y-6">
                   {links.map((link) => {
-                    const key =
-                      (link as any).href ??
-                      (link as any).scrollTo ??
-                      link.label;
+                    const key = (link as any).href ?? (link as any).scrollTo ?? link.label;
                     const common =
                       "block text-2xl font-semibold hover:text-primary transition-colors text-foreground";
                     if ((link as any).href) {
@@ -303,7 +286,7 @@ export default function Header() {
               </div>
             </motion.nav>
           </motion.div>,
-          document.body
+          document.body,
         )}
     </motion.header>
   );

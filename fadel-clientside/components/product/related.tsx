@@ -31,4 +31,3 @@ export default function RelatedProducts({ current }: { current: string }) {
     </section>
   );
 }
-

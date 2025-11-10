@@ -20,8 +20,8 @@ export default function AboutHero() {
                 About Fadel Art
               </h1>
               <p className="text-muted-foreground prose-max">
-                We curate original paintings that bring character and calm to modern spaces — guided by texture,
-                color, light, and a love for storytelling.
+                We curate original paintings that bring character and calm to modern spaces — guided
+                by texture, color, light, and a love for storytelling.
               </p>
               <div className="mt-6">
                 <Button asChild>

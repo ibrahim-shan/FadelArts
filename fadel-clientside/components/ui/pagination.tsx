@@ -66,7 +66,9 @@ export default function Pagination({
       <ul className="flex items-center gap-1">
         {items.map((it, idx) =>
           it === "ellipsis" ? (
-            <li key={`e${idx}`} className="px-2 text-sm text-muted-foreground">…</li>
+            <li key={`e${idx}`} className="px-2 text-sm text-muted-foreground">
+              …
+            </li>
           ) : (
             <li key={it}>
               <Link
@@ -81,7 +83,7 @@ export default function Pagination({
                 {it}
               </Link>
             </li>
-          )
+          ),
         )}
       </ul>
       <Link
@@ -95,4 +97,3 @@ export default function Pagination({
     </nav>
   );
 }
-

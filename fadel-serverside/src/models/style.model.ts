@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models } from "mongoose";
 
 export interface StyleDoc {
   name: string;
@@ -12,12 +12,11 @@ export interface StyleDoc {
 const StyleSchema = new Schema<StyleDoc>(
   {
     name: { type: String, required: true, unique: true, index: true },
-    description: { type: String, default: '' },
+    description: { type: String, default: "" },
     slug: { type: String, required: true, unique: true, index: true },
-    image: { type: String, default: '' },
+    image: { type: String, default: "" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const Style = models.Style || model<StyleDoc>('Style', StyleSchema);
-
+export const Style = models.Style || model<StyleDoc>("Style", StyleSchema);

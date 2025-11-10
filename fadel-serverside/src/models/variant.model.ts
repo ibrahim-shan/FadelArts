@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models } from "mongoose";
 
 export interface VariantDoc {
   name: string;
@@ -14,8 +14,7 @@ const VariantSchema = new Schema<VariantDoc>(
     values: { type: [String], default: [] },
     slug: { type: String, required: true, unique: true, index: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const Variant = models.Variant || model<VariantDoc>('Variant', VariantSchema);
-
+export const Variant = models.Variant || model<VariantDoc>("Variant", VariantSchema);

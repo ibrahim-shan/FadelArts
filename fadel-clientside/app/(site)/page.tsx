@@ -19,10 +19,7 @@ export default function Home() {
       <Hero id="hero" />
       <section id="new-arts" className="py-12">
         <div className="container">
-          <h2
-            className="mb-12 text-center"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          <h2 className="mb-12 text-center" style={{ fontFamily: "var(--font-heading)" }}>
             New Arts
           </h2>
           {/* Desktop/tablet grid */}
