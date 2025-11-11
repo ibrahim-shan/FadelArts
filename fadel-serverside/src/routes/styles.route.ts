@@ -9,6 +9,8 @@ import {
 
 const router = Router();
 
+router.get("/", listStyles);
+
 router.get("/", authRequired, listStyles);
 router.post("/", authRequired, createStyle);
 router.put("/:id", authRequired, updateStyle);
