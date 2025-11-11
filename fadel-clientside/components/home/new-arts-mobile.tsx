@@ -4,35 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { animate, motion, useMotionValue } from "framer-motion";
 import ProductCard from "@/components/product-card";
 
-const ITEMS = [
-  {
-    imageSrc: "/hero-1.svg",
-    title: "Morning Light",
-    artist: "A. Drawer",
-    price: 350,
-  },
-  {
-    imageSrc: "/hero-2.svg",
-    title: "Urban Echoes",
-    artist: "B. Painter",
-    price: 420,
-    compareAtPrice: 520,
-  },
-  {
-    imageSrc: "/hero-3.svg",
-    title: "Quiet Waters",
-    artist: "C. Maker",
-    price: 440,
-  },
-  {
-    imageSrc: "/hero-4.svg",
-    title: "Golden Hour",
-    artist: "D. Artist",
-    price: 610,
-  },
-];
+// --- ADD THIS TYPE DEFINITION ---
+type Product = {
+  _id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  price: number;
+  compareAtPrice?: number;
+  images: string[];
+};
 
-export default function NewArtsMobile() {
+// --- REMOVE THE HARDCODED 'ITEMS' ARRAY ---
+
+// --- UPDATE THE COMPONENT PROPS ---
+export default function NewArtsMobile({ products = [] }: { products: Product[] }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const x = useMotionValue(0);
@@ -51,6 +37,7 @@ export default function NewArtsMobile() {
       const viewport = viewportRef.current;
       if (!node || !viewport) return;
       const children = Array.from(node.children) as HTMLElement[];
+      if (children.length === 0) return; // Add check for empty products
       const positions = children.map((el) => el.offsetLeft);
       positionsRef.current = positions;
       const lastLeft = positions[positions.length - 1] ?? 0;
@@ -65,7 +52,7 @@ export default function NewArtsMobile() {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [products]); // Re-run effect if products array changes
 
   return (
     <div className="relative">
@@ -114,23 +101,33 @@ export default function NewArtsMobile() {
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
         >
-          {ITEMS.map((item, idx) => (
+          {/* --- UPDATE THIS SECTION --- */}
+          {products.map((product, idx) => (
             <motion.div
-              key={idx}
+              key={product._id} // Use a unique key from the data
               className="shrink-0 w-[80%] xs:w-[70%] transform-gpu"
               animate={idx === index ? { scale: 1.03, rotateZ: 0.25 } : { scale: 1, rotateZ: 0 }}
               transition={{ type: "spring", stiffness: 220, damping: 26 }}
             >
-              <ProductCard {...item} />
+              <ProductCard
+                imageSrc={product.images?.[0] || "/hero-1.svg"} // Use first image or fallback
+                title={product.title}
+                artist={product.artist}
+                price={product.price}
+                compareAtPrice={product.compareAtPrice}
+                href={`/product/${product.slug}`} // Add the link
+              />
             </motion.div>
           ))}
+          {/* --- END OF UPDATE --- */}
         </motion.div>
       </div>
 
       {/* Dots */}
       <div className="mt-4 flex items-center justify-center">
         <div className="flex items-center gap-2">
-          {ITEMS.map((_, i) => (
+          {/* --- UPDATE THIS SECTION --- */}
+          {products.map((_, i) => (
             <button
               key={i}
               aria-label={`Go to item ${i + 1}`}
@@ -155,6 +152,7 @@ export default function NewArtsMobile() {
               }`}
             />
           ))}
+          {/* --- END OF UPDATE --- */}
         </div>
       </div>
     </div>

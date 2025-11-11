@@ -11,7 +11,74 @@ export const metadata: Metadata = {
   description: "Browse paintings by category, style, size, and color.",
 };
 
-export default function ShopPage() {
+// --- ADD PRODUCT TYPE ---
+type Product = {
+  _id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  price: number;
+  compareAtPrice?: number;
+  images: string[];
+};
+
+// --- ADD DATA FETCHING FUNCTION ---
+async function getProducts(searchParams: { [key: string]: string | string[] | undefined }) {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const url = new URL(`${apiBase}/api/products`);
+
+  // Pass all search params from the page URL to the API
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value) {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  // --- THIS WAS THE FIX ---
+  // Set default page size to 6 if not provided
+  if (!url.searchParams.has("pageSize")) {
+    url.searchParams.set("pageSize", "6");
+  }
+
+  try {
+    const res = await fetch(url.toString(), {
+      cache: "no-store", // Don't cache shop pages
+    });
+
+    if (!res.ok) {
+      console.error("Failed to fetch products:", res.statusText);
+      // --- THIS WAS THE FIX (fallback) ---
+      return { items: [], total: 0, page: 1, pageSize: 6 };
+    }
+    
+    const data = await res.json();
+    return {
+      items: (data.items || []) as Product[],
+      total: (data.total || 0) as number,
+      page: (data.page || 1) as number,
+      // --- THIS WAS THE FIX (default) ---
+      pageSize: (data.pageSize || 6) as number,
+    };
+  } catch (error) {
+    console.error("Fetch error for products:", error);
+    // --- THIS WAS THE FIX (error) ---
+    return { items: [], total: 0, page: 1, pageSize: 6 };
+  }
+}
+
+// --- UPDATE THE COMPONENT SIGNATURE ---
+export default async function ShopPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  
+  // --- FETCH DATA ---
+  const { items: products, total, page, pageSize } = await getProducts(searchParams);
+
+  // Calculate total pages for pagination
+  const totalPages = Math.ceil(total / pageSize);
+
   return (
     <main>
       <PageHeader
@@ -26,46 +93,34 @@ export default function ShopPage() {
             <div>
               <Reveal>
                 <ShopToolbar />
+                
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <ProductCard
-                    imageSrc="/hero-1.svg"
-                    title="Morning Light"
-                    artist="A. Drawer"
-                    price={350}
-                  />
-                  <ProductCard
-                    imageSrc="/hero-2.svg"
-                    title="Urban Echoes"
-                    artist="B. Painter"
-                    price={420}
-                    compareAtPrice={520}
-                  />
-                  <ProductCard
-                    imageSrc="/hero-3.svg"
-                    title="Quiet Waters"
-                    artist="C. Maker"
-                    price={440}
-                  />
-                  <ProductCard
-                    imageSrc="/hero-4.svg"
-                    title="Golden Hour"
-                    artist="D. Artist"
-                    price={610}
-                  />
-                  <ProductCard
-                    imageSrc="/hero-2.svg"
-                    title="City Mist"
-                    artist="E. Color"
-                    price={390}
-                  />
-                  <ProductCard
-                    imageSrc="/hero-1.svg"
-                    title="Waking Dawn"
-                    artist="F. Lines"
-                    price={510}
-                  />
+                  {products.length === 0 ? (
+                    <p className="col-span-full text-muted-foreground">
+                      No products found.
+                    </p>
+                  ) : (
+                    products.map((product) => (
+                      <ProductCard
+                        key={product._id}
+                        imageSrc={product.images?.[0] || "/hero-1.svg"}
+                        title={product.title}
+                        artist={product.artist}
+                        price={product.price}
+                        compareAtPrice={product.compareAtPrice}
+                        href={`/product/${product.slug}`}
+                      />
+                    ))
+                  )}
                 </div>
-                <Pagination current={1} total={5} basePath="/shop" />
+                
+
+                <Pagination
+                  current={page}
+                  total={totalPages}
+                  basePath="/shop"
+                  searchParams={searchParams}
+                />
               </Reveal>
             </div>
           </div>

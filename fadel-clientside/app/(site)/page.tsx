@@ -12,7 +12,89 @@ import BlogsNews from "@/components/home/blogs-news";
 import HashScroll from "@/components/hash-scroll";
 import Subscription from "@/components/home/subscription";
 
-export default function Home() {
+// Define the Style type
+type Style = {
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
+};
+
+// Define the Product type
+type Product = {
+  _id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  price: number;
+  compareAtPrice?: number;
+  images: string[];
+};
+
+// Fetch styles data
+async function getStyles(): Promise<Style[]> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  try {
+    const res = await fetch(`${apiBase}/api/styles`, { cache: "no-store" });
+    if (!res.ok) {
+      console.error("Failed to fetch styles:", res.statusText);
+      return [];
+    }
+    const data = await res.json();
+    return data.ok && Array.isArray(data.items) ? data.items : [];
+  } catch (error) {
+    console.error("Fetch error for styles:", error);
+    return [];
+  }
+}
+
+// Fetch latest 8 products
+async function getHomepageProducts(): Promise<Product[]> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  try {
+    // Fetch 8 products
+    const res = await fetch(`${apiBase}/api/products?sort=newest&pageSize=8`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error("Failed to fetch products:", res.statusText);
+      return [];
+    }
+    const data = await res.json();
+    return data.ok && Array.isArray(data.items) ? data.items : [];
+  } catch (error) {
+    console.error("Fetch error for products:", error);
+    return [];
+  }
+}
+
+// --- ADD THIS SHUFFLE FUNCTION ---
+/**
+ * Shuffles an array in place using the Fisher-Yates algorithm.
+ * We make a copy (...) so we don't modify the original array.
+ */
+function shuffleArray(array: any[]) {
+  const newArray = [...array]; // Create a copy
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+// --- END OF NEW FUNCTION ---
+
+export default async function Home() {
+  // Await both data fetches
+  const styles = await getStyles();
+  const allProducts = await getHomepageProducts(); // <-- Fetches 8
+
+  // "New Arts" gets the first 4 products (newest)
+  const newArts = allProducts.slice(0, 4);
+
+  // --- THIS IS THE FIX ---
+  // "More to Explore" gets ALL 8 products, but shuffled
+  const randomProducts = shuffleArray(allProducts);
+
   return (
     <main>
       <HashScroll />
@@ -22,41 +104,25 @@ export default function Home() {
           <h2 className="mb-12 text-center" style={{ fontFamily: "var(--font-heading)" }}>
             New Arts
           </h2>
-          {/* Desktop/tablet grid */}
+
+          {/* Desktop grid (shows 4 newest) */}
           <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-8">
-            <ProductCard
-              imageSrc="/hero-1.svg"
-              title="Morning Light"
-              artist="A. Drawer"
-              price={350}
-              href="/product/morning-light"
-            />
-            <ProductCard
-              imageSrc="/hero-2.svg"
-              title="Urban Echoes"
-              artist="B. Painter"
-              price={420}
-              compareAtPrice={520}
-              href="/product/urban-echoes"
-            />
-            <ProductCard
-              imageSrc="/hero-3.svg"
-              title="Quiet Waters"
-              artist="C. Maker"
-              price={440}
-              href="/product/quiet-waters"
-            />
-            <ProductCard
-              imageSrc="/hero-4.svg"
-              title="Golden Hour"
-              artist="D. Artist"
-              price={610}
-              href="/product/golden-hour"
-            />
+            {newArts.map((art) => (
+              <ProductCard
+                key={art._id}
+                imageSrc={art.images?.[0] || "/hero-1.svg"}
+                title={art.title}
+                artist={art.artist}
+                price={art.price}
+                compareAtPrice={art.compareAtPrice}
+                href={`/product/${art.slug}`}
+              />
+            ))}
           </div>
-          {/* Mobile carousel to match Best Sellers feel */}
+
+          {/* Mobile carousel (shows 4 newest) */}
           <div className="sm:hidden">
-            <NewArtsMobile />
+            <NewArtsMobile products={newArts} />
           </div>
         </div>
       </section>
@@ -67,8 +133,13 @@ export default function Home() {
           </Button>
         </div>
       </div>
-      <ExploreByStyle id="styles" />
-      <BestSellers id="best-sellers" />
+
+      <ExploreByStyle id="styles" styles={styles} />
+
+      {/* --- THIS IS THE FIX --- */}
+      {/* Pass the shuffled 8 products to "More to Explore" */}
+      <BestSellers id="best-sellers" products={randomProducts} />
+
       <TrustBenefits />
       <FeaturedCollections id="collections" />
       <Testimonials id="testimonials" />
