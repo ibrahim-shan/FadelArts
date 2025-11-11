@@ -12,23 +12,29 @@ function slugify(input: string) {
     .replace(/-+/g, "-");
 }
 
+// THIS IS THE FUNCTION YOUR HOMEPAGE WILL USE
 export const listStyles = asyncHandler(async (req: Request, res: Response) => {
   const { q, page = "1", pageSize = "20" } = req.query as Record<string, string | undefined>;
+
   const filter: any = {};
-  if (q) {
-    filter.$or = [
-      { name: { $regex: q, $options: "i" } },
-      { description: { $regex: q, $options: "i" } },
-    ];
-  }
+  if (q) filter.name = { $regex: q, $options: "i" };
+
   const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
   const pageSizeNum = Math.min(100, Math.max(1, parseInt(String(pageSize), 10) || 20));
   const skip = (pageNum - 1) * pageSizeNum;
+
   const [items, total] = await Promise.all([
     Style.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSizeNum).lean(),
     Style.countDocuments(filter),
   ]);
+
   res.json({ ok: true, items, total, page: pageNum, pageSize: pageSizeNum });
+});
+
+export const listStylesInUse = asyncHandler(async (_req: Request, res: Response) => {
+  const usedStyleNames = await Product.distinct("styles", { published: true });
+  const items = await Style.find({ name: { $in: usedStyleNames } }).lean();
+  res.json({ ok: true, items, total: items.length, page: 1, pageSize: items.length });
 });
 
 export const createStyle = asyncHandler(async (req: Request, res: Response) => {
@@ -38,15 +44,12 @@ export const createStyle = asyncHandler(async (req: Request, res: Response) => {
     image?: string;
   };
   if (!name || !name.trim()) return res.status(400).json({ ok: false, error: "Name is required" });
+
   const slug = slugify(name);
   const exists = await Style.findOne({ $or: [{ name }, { slug }] }).lean();
   if (exists) return res.status(409).json({ ok: false, error: "Style already exists" });
-  const doc = await Style.create({
-    name,
-    description: description ?? "",
-    slug,
-    image: image ?? "",
-  });
+
+  const doc = await Style.create({ name, slug, description, image });
   res.status(201).json({ ok: true, style: doc });
 });
 
@@ -57,13 +60,13 @@ export const updateStyle = asyncHandler(async (req: Request, res: Response) => {
     description?: string;
     image?: string;
   };
-  const update: any = {};
-  if (typeof name === "string") {
+
+  const update: any = { description, image };
+  if (name) {
     update.name = name;
     update.slug = slugify(name);
   }
-  if (typeof description === "string") update.description = description;
-  if (typeof image === "string") update.image = image;
+
   const doc = await Style.findByIdAndUpdate(id, update, { new: true });
   if (!doc) return res.status(404).json({ ok: false, error: "Not found" });
   res.json({ ok: true, style: doc });
@@ -71,27 +74,17 @@ export const updateStyle = asyncHandler(async (req: Request, res: Response) => {
 
 export const deleteStyle = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
-  const st = await Style.findById(id).select("name").lean<{ name: string }>();
-  if (!st) return res.status(404).json({ ok: false, error: "Not found" });
-  // Prevent deletion if any product references this style by name
-  const inUse = await Product.countDocuments({ styles: st.name });
+
+  const v = await Style.findById(id);
+  if (!v) return res.status(404).json({ ok: false, error: "Not found" });
+
+  const inUse = await Product.countDocuments({ styles: v.name });
   if (inUse > 0) {
-    return res.status(409).json({
-      ok: false,
-      error: "Style is in use by products and cannot be deleted.",
-    });
+    return res
+      .status(409)
+      .json({ ok: false, error: "Style is in use by products and cannot be deleted." });
   }
+
   await Style.findByIdAndDelete(id);
   res.json({ ok: true });
-});
-
-// Public: list styles that are referenced by at least one published product
-export const listStylesInUse = asyncHandler(async (_req: Request, res: Response) => {
-  const names = await Product.distinct("styles", { published: true });
-  const filtered = (names || []).filter((n) => typeof n === "string" && n.trim().length);
-  if (!filtered.length) return res.json({ ok: true, items: [], total: 0, page: 1, pageSize: 0 });
-  const items = await Style.find({ name: { $in: filtered } })
-    .select("name")
-    .lean();
-  res.json({ ok: true, items, total: items.length, page: 1, pageSize: items.length });
 });

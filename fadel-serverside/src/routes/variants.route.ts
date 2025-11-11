@@ -5,6 +5,7 @@ import {
   createVariant,
   updateVariant,
   deleteVariant,
+  listVariantsInUse,
 } from "../controllers/variants.controller";
 
 const router = Router();
@@ -13,5 +14,6 @@ router.get("/", authRequired, listVariants);
 router.post("/", authRequired, createVariant);
 router.put("/:id", authRequired, updateVariant);
 router.delete("/:id", authRequired, deleteVariant);
+router.get("/in-use", listVariantsInUse);
 
 export default router;

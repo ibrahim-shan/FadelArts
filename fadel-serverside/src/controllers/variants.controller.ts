@@ -12,6 +12,13 @@ function slugify(input: string) {
     .replace(/-+/g, "-");
 }
 
+export const listVariantsInUse = asyncHandler(async (_req: Request, res: Response) => {
+  const usedVariantNames = await Product.distinct("variants.name", { published: true });
+  const items = await Variant.find({ name: { $in: usedVariantNames } });
+
+  res.json({ ok: true, items, total: items.length, page: 1, pageSize: items.length });
+});
+
 export const listVariants = asyncHandler(async (req: Request, res: Response) => {
   const { q, page = "1", pageSize = "20" } = req.query as Record<string, string | undefined>;
   const filter: any = {};
@@ -20,7 +27,7 @@ export const listVariants = asyncHandler(async (req: Request, res: Response) => 
   const pageSizeNum = Math.min(100, Math.max(1, parseInt(String(pageSize), 10) || 20));
   const skip = (pageNum - 1) * pageSizeNum;
   const [items, total] = await Promise.all([
-    Variant.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSizeNum).lean(),
+    Variant.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSizeNum),
     Variant.countDocuments(filter),
   ]);
   res.json({ ok: true, items, total, page: pageNum, pageSize: pageSizeNum });
@@ -30,7 +37,7 @@ export const createVariant = asyncHandler(async (req: Request, res: Response) =>
   const { name, values } = req.body as { name?: string; values?: string[] };
   if (!name || !name.trim()) return res.status(400).json({ ok: false, error: "Name is required" });
   const slug = slugify(name);
-  const exists = await Variant.findOne({ $or: [{ name }, { slug }] }).lean();
+  const exists = await Variant.findOne({ $or: [{ name }, { slug }] });
   if (exists) return res.status(409).json({ ok: false, error: "Variant already exists" });
   const cleanValues = (values || []).map((v) => String(v).trim()).filter(Boolean);
   const uniqValues = Array.from(new Set(cleanValues));
@@ -57,7 +64,7 @@ export const updateVariant = asyncHandler(async (req: Request, res: Response) =>
 
 export const deleteVariant = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
-  const v = await Variant.findById(id).lean();
+  const v = await Variant.findById(id);
   if (!v) return res.status(404).json({ ok: false, error: "Not found" });
   // Prevent delete if any product references this variant by name
   const inUse = await Product.countDocuments({ "variants.name": v.name });

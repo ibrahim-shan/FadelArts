@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
-import { Product } from "../models/product.model";
+import { Product, type ProductDoc } from "../models/product.model";
+import { Variant } from "../models/variant.model";
 import { asyncHandler } from "../utils/async";
 import { getNextSequence, formatSku, formatBarcodeFromSeq } from "../services/sequence";
 
@@ -34,6 +35,30 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
   if (maxPrice) price.$lte = Number(maxPrice);
   if (Object.keys(price).length) filter.price = price;
 
+  const variantDocs = await Variant.find().select("slug").lean();
+  const variantSlugs = variantDocs.map((v) => v.slug);
+  const variantFilters: any[] = [];
+
+  for (const key in req.query) {
+    // If the query param is one of our known variant slugs...
+    if (variantSlugs.includes(key)) {
+      const value = req.query[key];
+      if (typeof value === "string" && value.length > 0) {
+        const values = value.split(",");
+        // Add a filter to match products that have this variant
+        variantFilters.push({
+          variants: {
+            $elemMatch: { slug: key, values: { $in: values } },
+          },
+        });
+      }
+    }
+  }
+
+  if (variantFilters.length > 0) {
+    filter.$and = variantFilters;
+  }
+
   let sortSpec: any = { createdAt: -1 };
   if (sort === "price_asc") sortSpec = { price: 1 };
   else if (sort === "price_desc") sortSpec = { price: -1 };
@@ -56,6 +81,13 @@ export const getProduct = asyncHandler(async (req: Request, res: Response) => {
   const product = await Product.findOne({ slug, published: true }).lean();
   if (!product) return res.status(404).json({ ok: false, error: "Not found" });
   res.json({ ok: true, product });
+});
+
+export const listColorsInUse = asyncHandler(async (_req: Request, res: Response) => {
+  const colors = await Product.distinct("colors", { published: true });
+  // Filter out any empty/null values
+  const filtered = (colors || []).filter((c) => typeof c === "string" && c.trim().length);
+  res.json({ ok: true, items: filtered });
 });
 
 export const createProduct = asyncHandler(async (req: Request, res: Response) => {
@@ -150,6 +182,34 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
 export const updateProduct = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
   const update = req.body as any;
+
+  // --- START OF NEW LOGIC ---
+
+  // 1. Fetch the existing product
+  const existingProduct = await Product.findById(id);
+  if (!existingProduct) {
+    return res.status(404).json({ ok: false, error: "Not found" });
+  }
+
+  // 2. Check if the 'price' field is part of this update
+  if (update.price !== undefined && update.price !== null) {
+    const newPrice = Number(update.price);
+    const oldPrice = existingProduct.price;
+
+    // 3. Apply your automatic compareAtPrice logic
+    if (!isNaN(newPrice)) {
+      if (newPrice < oldPrice) {
+        // Price went down: Set old price as the compareAtPrice
+        update.compareAtPrice = oldPrice;
+      } else if (newPrice >= oldPrice) {
+        // Price went up or stayed same: Remove the compareAtPrice
+        update.compareAtPrice = null;
+      }
+    }
+  }
+  // --- END OF NEW LOGIC ---
+
+  // 4. Proceed with the update (which now includes our new compareAtPrice logic)
   const doc = await Product.findByIdAndUpdate(id, update, { new: true });
   if (!doc) return res.status(404).json({ ok: false, error: "Not found" });
   res.json({ ok: true, product: doc });
@@ -160,6 +220,51 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
   const r = await Product.findByIdAndDelete(id);
   if (!r) return res.status(404).json({ ok: false, error: "Not found" });
   res.json({ ok: true });
+});
+
+export const listRelatedProducts = asyncHandler(async (req: Request, res: Response) => {
+  const { currentSlug, categories, styles, colors } = req.query as Record<
+    string,
+    string | undefined
+  >;
+
+  if (!currentSlug) {
+    return res.json({ ok: true, items: [] });
+  }
+
+  // Base filter to exclude the current product
+  const baseFilter: any = {
+    published: true,
+    slug: { $ne: currentSlug },
+  };
+
+  // Build the $or query for related items
+  const orConditions: any[] = [];
+  if (categories) {
+    orConditions.push({ categories: { $in: categories.split(",") } });
+  }
+  if (styles) {
+    orConditions.push({ styles: { $in: styles.split(",") } });
+  }
+  if (colors) {
+    orConditions.push({ colors: { $in: colors.split(",") } });
+  }
+
+  // Explicitly type 'items'
+  let items: ProductDoc[] = [];
+
+  // 1. First, try to find products matching the $or conditions
+  if (orConditions.length > 0) {
+    const relatedFilter = { ...baseFilter, $or: orConditions };
+    items = await Product.find(relatedFilter).sort({ createdAt: -1 }).limit(4);
+  }
+
+  // 2. If no "related" items were found, fall back to just *any* 4 new products
+  if (items.length === 0) {
+    items = await Product.find(baseFilter).sort({ createdAt: -1 }).limit(4);
+  }
+
+  res.json({ ok: true, items });
 });
 
 // Public: return global price range for published products

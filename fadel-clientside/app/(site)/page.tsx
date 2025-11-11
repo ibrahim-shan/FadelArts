@@ -129,7 +129,7 @@ export default async function Home() {
       <div className="container -mt-4 mb-12">
         <div className="flex justify-center">
           <Button asChild>
-            <Link href="/gallery">View more</Link>
+            <Link href="/shop">View more</Link>
           </Button>
         </div>
       </div>

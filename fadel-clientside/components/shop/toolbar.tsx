@@ -1,4 +1,4 @@
-  "use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -33,7 +33,8 @@ export default function ShopToolbar() {
     if (process.env.NODE_ENV !== "production") {
       console.log("[Toolbar] push", next, "->", href);
     }
-    router.push(href);
+    // V-- ADD { scroll: false } HERE --V
+    router.push(href, { scroll: false });
   };
 
   // Debounce search typing

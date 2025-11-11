@@ -17,17 +17,17 @@ type Slide = {
 
 const DEFAULT_SLIDES: Slide[] = [
   {
-    src: "/hero-1.svg",
+    src: "/images/heros/hero-1.webp",
     title: "Curated Art|For Modern Spaces",
     cta: { label: "Explore Gallery", href: "/gallery" },
   },
   {
-    src: "/hero-2.svg",
+    src: "/images/heros/hero-2.webp",
     title: "Bring Character|To Your Walls",
     cta: { label: "Shop Now", href: "/shop" },
   },
   {
-    src: "/hero-3.svg",
+    src: "/images/heros/hero-3.webp",
     title: "Collect The|Exceptional",
     cta: { label: "New Arrivals", href: "/gallery?sort=new" },
   },
@@ -79,7 +79,7 @@ export function Hero({
                   src={slide.src}
                   alt="Featured artwork"
                   fill
-                  priority
+                  priority={i === 0}
                   sizes="100vw"
                   className="object-cover"
                 />
@@ -87,7 +87,7 @@ export function Hero({
             ) : null,
           )}
         </AnimatePresence>
-
+        <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
         {/* Overlay content */}
         <div className="absolute inset-0 grid place-items-center">
           <motion.div
@@ -97,7 +97,10 @@ export function Hero({
             transition={transition}
             className="text-center px-6"
           >
-            <h1 className="mb-6 leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+            <h1
+              className="mb-6 leading-tight text-white"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               {slides[index]?.title.split("|").map((line, i) => (
                 <span key={i} className="block">
                   {line}

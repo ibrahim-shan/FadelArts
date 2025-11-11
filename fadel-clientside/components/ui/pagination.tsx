@@ -81,7 +81,7 @@ export default function Pagination({
           current === 1 ? "pointer-events-none opacity-50" : ""
         }`}
         href={pageHref(prev)}
-        scroll={true}
+        scroll={true  }
       >
         Previous
       </Link>

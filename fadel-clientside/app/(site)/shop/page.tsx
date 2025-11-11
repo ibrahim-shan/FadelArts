@@ -89,7 +89,7 @@ export default async function ShopPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const sp = await searchParams;
-  const spKey = JSON.stringify(sp);
+
   // --- FETCH DATA ---
   const { items: products, total, page, pageSize } = await getProducts(sp);
 
@@ -108,7 +108,7 @@ export default async function ShopPage({
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
             <ShopFilters />
             <div>
-              <Reveal key={spKey}>
+              <Reveal>
                 <ShopToolbar />
 
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">

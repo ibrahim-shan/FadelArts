@@ -13,46 +13,32 @@ import { DualRangeSlider } from "@/components/ui/dual-range-slider";
 type CheckboxOption = { id: string; label: string };
 type Category = { _id: string; name: string };
 type Style = { _id: string; name: string };
+type Variant = { _id: string; name: string; slug: string; values: string[] };
 
 // Categories and styles are fetched from backend
-// Categories will use their Mongo _id as filter values
-// Styles will use their name as filter values (matches Product.styles)
 const CATEGORIES_FALLBACK: CheckboxOption[] = [];
 const STYLES_FALLBACK: CheckboxOption[] = [];
 
-const SIZES: CheckboxOption[] = [
-  { id: "small", label: "Small" },
-  { id: "medium", label: "Medium" },
-  { id: "large", label: "Large" },
-  { id: "xl", label: "XL" },
-];
-
-const COLORS: { id: string; name: string; value: string }[] = [
-  { id: "gold", name: "Gold", value: "#9c6f00" },
-  { id: "blue", name: "Blue", value: "#4682b4" },
-  { id: "teal", name: "Teal", value: "#2f4f4f" },
-  { id: "black", name: "Black", value: "#111" },
-  { id: "white", name: "White", value: "#fff" },
-];
-
-// Collapsible defined at module scope to preserve state across parent re-renders
 function Collapsible({
   title,
   children,
-  defaultOpen = false,
+  open, // <-- 1. Accept 'open' prop
+  onOpenChange, // <-- 2. Accept 'onOpenChange' prop
 }: {
   title: string;
   children: React.ReactNode;
-  defaultOpen?: boolean;
+  open: boolean; // <-- 3. Make 'open' required
+  onOpenChange: (open: boolean) => void; // <-- 4. Make 'onOpenChange' required
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  // const [open, setOpen] = useState(defaultOpen); // <-- 5. REMOVE internal state
+
   return (
     <div className="py-2 border-b border-border/60 last:border-b-0">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => onOpenChange(!open)} // <-- 6. Use onOpenChange
         className="w-full flex items-center justify-between py-2 text-left"
-        aria-expanded={open}
+        aria-expanded={open} // <-- 7. Use 'open' prop
       >
         <span className="text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
           {title}
@@ -62,7 +48,7 @@ function Collapsible({
         />
       </button>
       <AnimatePresence initial={false}>
-        {open && (
+        {open && ( // <-- 8. Use 'open' prop
           <motion.div
             key="content"
             initial={{ height: 0, opacity: 0 }}
@@ -78,8 +64,6 @@ function Collapsible({
     </div>
   );
 }
-
-// *** FIX: Moved Section component outside ShopFilters ***
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-4 border-b border-border/60 last:border-b-0">
@@ -91,8 +75,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// *** FIX: Moved Checkbox component outside ShopFilters ***
-// It now takes `isOn` and `onToggle` as props
 function Checkbox({
   id,
   label,
@@ -100,13 +82,10 @@ function Checkbox({
   onToggle,
 }: CheckboxOption & { isOn: boolean; onToggle: (id: string) => void }) {
   return (
-    <label
-      className="flex items-center gap-3 py-1.5 cursor-pointer"
-      // <-- onClick IS NOW REMOVED
-    >
+    <label className="flex items-center gap-3 py-1.5 cursor-pointer">
       <UICheckbox
         checked={isOn}
-        onCheckedChange={() => onToggle(id)} // <-- This correctly handles the click
+        onCheckedChange={() => onToggle(id)}
         aria-label={label}
         className="sr-only"
       />
@@ -141,8 +120,13 @@ export default function ShopFilters() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   const [categoriesData, setCategoriesData] = useState<Category[]>([]);
   const [stylesData, setStylesData] = useState<Style[]>([]);
+  const [colorsData, setColorsData] = useState<string[]>([]);
+  const [variantsData, setVariantsData] = useState<Variant[]>([]);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
-  const [selected, setSelected] = useState<Record<string, boolean>>({}); // Price range (slider + inputs)
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+
+  // Price range
   const PRICE_MIN = 0;
   const PRICE_STEP = 10;
   const [priceMaxBound, setPriceMaxBound] = useState<number | null>(null);
@@ -159,13 +143,12 @@ export default function ShopFilters() {
   ) => {
     const params = new URLSearchParams(urlSearch.toString());
 
-    // Categories/styles/colors selected as comma lists
     // Categories use IDs; Styles use names
     const catSel = categoriesData.map((c) => c._id).filter((id) => !!nextSelected[id]);
     const styleSel = stylesData.map((s) => s.name).filter((name) => !!nextSelected[name]);
-    const colorSel = COLORS.map((c) => c.id).filter((id) => !!nextSelected[id]);
-    // Optional size param (not used on server yet, ignored if present)
-    const sizeSel = SIZES.map((s) => s.id).filter((id) => !!nextSelected[id]);
+
+    // Colors are just names now
+    const colorSel = colorsData.filter((colorName) => !!nextSelected[colorName]);
 
     const setOrDel = (key: string, list: string[]) => {
       if (list.length) params.set(key, list.join(","));
@@ -174,8 +157,17 @@ export default function ShopFilters() {
     setOrDel("category", catSel);
     setOrDel("style", styleSel);
     setOrDel("color", colorSel);
-    if (sizeSel.length) params.set("size", sizeSel.join(","));
-    else params.delete("size");
+    params.delete("size"); // Delete the old static "size" param
+
+    // Add dynamic variant params
+    variantsData.forEach((variant) => {
+      // Find selected values for this variant, e.g., ["S", "M"]
+      const selectedValues = variant.values.filter(
+        (value) => !!nextSelected[`${variant.slug}_${value}`],
+      );
+      // Set the param, e.g., ?size=S,M
+      setOrDel(variant.slug, selectedValues);
+    });
 
     // Price
     const minV = typeof nextMin === "number" ? nextMin : rangeMin;
@@ -185,22 +177,21 @@ export default function ShopFilters() {
     if (priceMaxBound !== null && maxV < priceMaxBound) params.set("maxPrice", String(maxV));
     else params.delete("maxPrice");
 
-    // Reset to first page on filter changes
     params.delete("page");
 
     const href = `${pathname}?${params.toString()}`;
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[Filters] push ->", href);
-    }
-    router.push(href);
+    router.push(href, { scroll: false });
   };
 
   const toggle = (id: string) => {
-    setSelected((s) => {
-      const next = { ...s, [id]: !s[id] };
-      buildAndPush(next);
-      return next;
-    });
+    // 1. Calculate the next state based on the current state
+    const nextSelected = { ...selected, [id]: !selected[id] };
+
+    // 2. Update the state (this queues a re-render)
+    setSelected(nextSelected);
+
+    // 3. Call the function that pushes to the router (this is now safe)
+    buildAndPush(nextSelected);
   };
 
   const clearAll = () => {
@@ -210,36 +201,82 @@ export default function ShopFilters() {
     setRangeMax(priceMaxBound ?? 0);
     setPriceMin(String(PRICE_MIN));
     setPriceMax(String(priceMaxBound ?? 0));
-    buildAndPush(cleared, PRICE_MIN, priceMaxBound ?? undefined as any);
-  }; // *** FIX: Removed Section and Checkbox definitions from here ***
-
-  // Initialize state from URL on mount and when URL changes externally
+    buildAndPush(cleared, PRICE_MIN, priceMaxBound ?? (undefined as any));
+  };
+  const paramsString = urlSearch.toString();
+  // Initialize state from URL on mount
   useEffect(() => {
-    if (priceMaxBound === null) return; // wait for bound to avoid 0-0 blink
-    const params = urlSearch;
-    const next: Record<string, boolean> = {};
-    const readList = (key: string) => params.get(key)?.split(",").filter(Boolean) ?? [];
-    // Categories are IDs; Styles are names
-    readList("category").forEach((id) => (next[id] = true));
-    readList("style").forEach((name) => (next[name] = true));
-    readList("color").forEach((id) => (next[id] = true));
-    readList("size").forEach((id) => (next[id] = true));
-    setSelected(next);
+    if (priceMaxBound === null) return;
 
+    // This check helps prevent hydrating state before filter data is loaded
+    if (!categoriesData.length && !stylesData.length && !variantsData.length && paramsString) {
+      // If we have params but no data, wait for data
+      return;
+    }
+
+    const params = urlSearch;
+    const nextSelected: Record<string, boolean> = {};
+    const nextOpenSections: Record<string, boolean> = {}; // <-- Create a new open state object
+    const readList = (key: string) => params.get(key)?.split(",").filter(Boolean) ?? [];
+
+    // --- Hydrate Categories ---
+    let isCategoryActive = false;
+    readList("category").forEach((id) => {
+      nextSelected[id] = true;
+      isCategoryActive = true;
+    });
+    // Set open state *only if* it's active. Otherwise, let user control it.
+    if (isCategoryActive) nextOpenSections["Categories"] = true;
+
+    // --- Hydrate Style ---
+    let isStyleActive = false;
+    readList("style").forEach((name) => {
+      nextSelected[name] = true;
+      isStyleActive = true;
+    });
+    if (isStyleActive) nextOpenSections["Style"] = true;
+
+    // --- Hydrate Colors ---
+    readList("color").forEach((id) => (nextSelected[id] = true));
+    // (Colors is a Section, not Collapsible, so no open state needed)
+
+    // --- Hydrate Variants ---
+    variantsData.forEach((variant) => {
+      const values = readList(variant.slug);
+      let isVariantActive = false;
+      values.forEach((value) => {
+        if (variant.values.includes(value)) {
+          nextSelected[`${variant.slug}_${value}`] = true;
+          isVariantActive = true;
+        }
+      });
+      if (isVariantActive) nextOpenSections[variant.name] = true; // Set open if active
+    });
+
+    setSelected(nextSelected);
+
+    // Merge with existing open state to preserve manual toggles
+    setOpenSections((prevOpen) => ({
+      ...prevOpen, // Keep any sections the user manually opened
+      ...nextOpenSections, // Add sections that are active based on URL
+    }));
+
+    // --- Price logic (unchanged) ---
     const minRaw = params.get("minPrice");
     const maxRaw = params.get("maxPrice");
     const minP = Number(minRaw);
     const maxP = Number(maxRaw);
     const hasMin = minRaw != null && minRaw !== "" && Number.isFinite(minP);
-    // treat 0 as unset for max to avoid 0..0 on load
     const hasMax = maxRaw != null && maxRaw !== "" && Number.isFinite(maxP) && maxP > 0;
     const newMin = hasMin ? Math.max(PRICE_MIN, Math.min(minP, priceMaxBound)) : PRICE_MIN;
-    const newMax = hasMax ? Math.max(newMin + PRICE_STEP, Math.min(maxP, priceMaxBound)) : priceMaxBound;
+    const newMax = hasMax
+      ? Math.max(newMin + PRICE_STEP, Math.min(maxP, priceMaxBound))
+      : priceMaxBound;
     setRangeMin(newMin);
     setRangeMax(newMax);
     setPriceMin(String(newMin));
     setPriceMax(String(newMax));
-  }, [urlSearch, priceMaxBound]);
+  }, [paramsString, priceMaxBound, variantsData, categoriesData, stylesData]);
 
   // Fetch global price upper bound
   useEffect(() => {
@@ -248,17 +285,21 @@ export default function ShopFilters() {
         const r = await fetch(`${apiBase}/api/products/price-range/global`).then((x) => x.json());
         if (r?.ok && typeof r.max === "number") {
           const bound = Math.max(0, r.max);
-          if (bound <= 0) return; // keep existing bound if invalid
+          if (bound <= 0) return;
           setPriceMaxBound(bound);
-          // Align to new bound unless URL overrides with valid values (max>0)
           const maxRaw = urlSearch.get("maxPrice");
           const minRaw = urlSearch.get("minPrice");
           const urlMax = Number(maxRaw);
           const urlMin = Number(minRaw);
-          const useUrlMax = maxRaw != null && maxRaw !== "" && Number.isFinite(urlMax) && urlMax > 0;
+          const useUrlMax =
+            maxRaw != null && maxRaw !== "" && Number.isFinite(urlMax) && urlMax > 0;
           const useUrlMin = minRaw != null && minRaw !== "" && Number.isFinite(urlMin);
-          const nextMax = useUrlMax ? Math.min(bound, Math.max(urlMax, PRICE_MIN + PRICE_STEP)) : bound;
-          const nextMin = useUrlMin ? Math.max(PRICE_MIN, Math.min(urlMin, nextMax - PRICE_STEP)) : PRICE_MIN;
+          const nextMax = useUrlMax
+            ? Math.min(bound, Math.max(urlMax, PRICE_MIN + PRICE_STEP))
+            : bound;
+          const nextMin = useUrlMin
+            ? Math.max(PRICE_MIN, Math.min(urlMin, nextMax - PRICE_STEP))
+            : PRICE_MIN;
           setRangeMin(nextMin);
           setRangeMax(nextMax);
           setPriceMin(String(nextMin));
@@ -268,20 +309,28 @@ export default function ShopFilters() {
     })();
   }, [apiBase]);
 
-  // Fetch categories and styles from backend
+  // Fetch categories, styles, COLORS, and VARIANTS
   useEffect(() => {
     (async () => {
       try {
-        const [cs, ss] = await Promise.all([
+        const [cs, ss, cos, vs] = await Promise.all([
           fetch(`${apiBase}/api/categories/in-use`)
             .then((r) => r.json())
             .catch(() => null),
           fetch(`${apiBase}/api/styles/in-use`)
             .then((r) => r.json())
             .catch(() => null),
+          fetch(`${apiBase}/api/products/colors/in-use`)
+            .then((r) => r.json())
+            .catch(() => null),
+          fetch(`${apiBase}/api/variants/in-use`) // Fetch variants
+            .then((r) => r.json())
+            .catch(() => null),
         ]);
         if (cs && cs.ok && Array.isArray(cs.items)) setCategoriesData(cs.items);
         if (ss && ss.ok && Array.isArray(ss.items)) setStylesData(ss.items);
+        if (cos && cos.ok && Array.isArray(cos.items)) setColorsData(cos.items);
+        if (vs && vs.ok && Array.isArray(vs.items)) setVariantsData(vs.items); // Set variants
       } catch {}
     })();
   }, [apiBase]);
@@ -296,7 +345,13 @@ export default function ShopFilters() {
           Clear
         </Button>
       </div>
-      <Collapsible title="Categories">
+
+      {/* Categories (defaultOpen removed) */}
+      <Collapsible
+        title="Categories"
+        open={!!openSections["Categories"]}
+        onOpenChange={(isOpen) => setOpenSections((s) => ({ ...s, Categories: isOpen }))}
+      >
         <div className="grid gap-1.5">
           {(categoriesData.length
             ? categoriesData.map((c) => ({ id: c._id, label: c.name }))
@@ -306,7 +361,13 @@ export default function ShopFilters() {
           ))}
         </div>
       </Collapsible>
-      <Collapsible title="Style">
+
+      {/* Style (defaultOpen removed) */}
+      <Collapsible
+        title="Style"
+        open={!!openSections["Style"]}
+        onOpenChange={(isOpen) => setOpenSections((s) => ({ ...s, Style: isOpen }))}
+      >
         <div className="grid gap-1.5">
           {(stylesData.length
             ? stylesData.map((s) => ({ id: s.name, label: s.name }))
@@ -316,6 +377,30 @@ export default function ShopFilters() {
           ))}
         </div>
       </Collapsible>
+
+      {/* Dynamic Variants (defaultOpen removed) */}
+      {variantsData.map((variant) => (
+        <Collapsible
+          title={variant.name}
+          key={variant._id}
+          open={!!openSections[variant.name]}
+          onOpenChange={(isOpen) => setOpenSections((s) => ({ ...s, [variant.name]: isOpen }))}
+        >
+          <div className="grid gap-1.5">
+            {variant.values.map((value) => (
+              <Checkbox
+                key={value}
+                id={`${variant.slug}_${value}`} // e.g., id="size_S"
+                label={value}
+                isOn={!!selected[`${variant.slug}_${value}`]}
+                onToggle={toggle}
+              />
+            ))}
+          </div>
+        </Collapsible>
+      ))}
+
+      {/* Price Range (was already correct, remains a Section) */}
       <Section title="Price Range">
         {priceMaxBound !== null ? (
           <DualRangeSlider
@@ -325,7 +410,6 @@ export default function ShopFilters() {
               setRangeMax(maxV);
               setPriceMin(String(minV));
               setPriceMax(String(maxV));
-              // debounce push
               window.clearTimeout((window as any).__priceDeb__);
               (window as any).__priceDeb__ = window.setTimeout(() => {
                 buildAndPush(selected, minV, maxV);
@@ -348,16 +432,17 @@ export default function ShopFilters() {
               type="text"
               value={priceMin}
               disabled={priceMaxBound === null}
-              onChange={(e) => {
-                setPriceMin(e.target.value);
-              }}
+              onChange={(e) => setPriceMin(e.target.value)}
               onBlur={() => {
                 const v = Number(priceMin);
                 if (!Number.isNaN(v)) {
-                  const clamped = Math.max(PRICE_MIN, Math.min(v, rangeMax - PRICE_STEP));
+                  const clamped = Math.min(
+                    priceMaxBound ?? Infinity,
+                    Math.max(v, rangeMin + PRICE_STEP),
+                  );
                   setRangeMin(clamped);
                   setPriceMin(String(clamped));
-                  buildAndPush(selected, clamped, rangeMax);
+                  buildAndPush(selected, rangeMin, clamped);
                 } else {
                   setPriceMin(String(rangeMin));
                 }
@@ -374,13 +459,14 @@ export default function ShopFilters() {
               type="text"
               value={priceMax}
               disabled={priceMaxBound === null}
-              onChange={(e) => {
-                setPriceMax(e.target.value);
-              }}
+              onChange={(e) => setPriceMax(e.target.value)}
               onBlur={() => {
                 const v = Number(priceMax);
                 if (!Number.isNaN(v)) {
-                  const clamped = Math.min(priceMaxBound, Math.max(v, rangeMin + PRICE_STEP));
+                  const clamped = Math.min(
+                    priceMaxBound ?? Infinity,
+                    Math.max(v, rangeMin + PRICE_STEP),
+                  );
                   setRangeMax(clamped);
                   setPriceMax(String(clamped));
                   buildAndPush(selected, rangeMin, clamped);
@@ -393,39 +479,41 @@ export default function ShopFilters() {
           </div>
         </div>
       </Section>
-      <Section title="Size">
-        <div className="grid gap-1.5">
-          {SIZES.map((o) => (
-            // *** FIX: Pass isOn and onToggle props to Checkbox ***
-            <Checkbox key={o.id} {...o} isOn={!!selected[o.id]} onToggle={toggle} />
-          ))}
-        </div>
-      </Section>
+
+      {/* Colors (was already correct, remains a Section) */}
       <Section title="Colors">
         <div className="flex flex-wrap gap-3">
-          {COLORS.map((c) => (
-            <label
-              key={c.id}
-              className="flex items-center gap-2 cursor-pointer"
-              // <-- onClick IS NOW REMOVED
-            >
-              <UICheckbox
-                checked={!!selected[c.id]}
-                onCheckedChange={() => toggle(c.id)} // <-- This correctly handles the click
-                className="sr-only"
-                aria-label={c.name}
-              />
-              <span
-                className={`inline-block h-5 w-5 rounded-full ring-1 ${
-                  selected[c.id] ? "ring-2 ring-primary" : "ring-border"
-                }`}
-                style={{ background: c.value }}
-                aria-label={c.name}
-                title={c.name}
-              />
-              <span className="text-xs text-muted-foreground">{c.name}</span>
-            </label>
-          ))}
+          {/* 'colorName' is the hex string, e.g., "#b5a264" */}
+          {colorsData.map((colorName) => {
+            const lowerColor = colorName.toLowerCase();
+            return (
+              <label
+                key={colorName}
+                className="flex items-center gap-2 cursor-pointer rounded-full p-0.5" // Make clickable area slightly bigger
+              >
+                <UICheckbox
+                  checked={!!selected[colorName]}
+                  onCheckedChange={() => toggle(colorName)}
+                  className="sr-only"
+                  aria-label={colorName} // Screen readers will still read the hex
+                />
+                <span
+                  className={`inline-block h-5 w-5 rounded-full ring-1 ${
+                    selected[colorName] ? "ring-2 ring-primary" : "ring-border"
+                  }`}
+                  style={{
+                    // Use the fetched hex color directly as the background
+                    background: lowerColor,
+                    // Add a border for white/very light colors
+                    border: lowerColor === "#ffffff" ? "1px solid #ccc" : "none",
+                  }}
+                  title={colorName} // This will show the hex code on hover
+                />
+                {/* The text span that displayed the color hex is now removed.
+                 */}
+              </label>
+            );
+          })}
         </div>
       </Section>
     </aside>

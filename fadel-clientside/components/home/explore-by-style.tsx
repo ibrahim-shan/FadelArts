@@ -26,7 +26,7 @@ export default function ExploreByStyle({
   const hover = {
     whileHover: { scale: 1.06, y: -2, boxShadow: "var(--shadow-lg)" as any },
     whileTap: { scale: 0.98 },
-    transition: { type: "spring", stiffness: 260, damping: 24 },
+    transition: { type: "spring" as const, stiffness: 260, damping: 24 },
   };
 
   // Use the passed `styles` prop, limiting to 6 for the homepage grid
@@ -51,7 +51,7 @@ export default function ExploreByStyle({
             {stylesToDisplay.map((style) => (
               <Link
                 key={style._id}
-                href={`/shop?style=${style.slug}`} // Link to a filtered shop page
+                href={`/shop?style=${style.name}`} // Link to a filtered shop page
                 className="group"
                 aria-label={`Explore ${style.name}`}
               >

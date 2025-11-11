@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronsUpDown, Check } from "lucide-react";
+import { ChevronsUpDown, Check, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase"; // *** 1. IMPORT SUPABASE ***
 
@@ -59,6 +59,7 @@ type Product = {
   inventory?: number;
   published?: boolean;
   images?: string[];
+  colors?: string[];
   shortDescription?: string;
   description?: string;
   categories?: string[];
@@ -68,6 +69,8 @@ type Product = {
   barcode?: string;
   year?: number;
 };
+
+const hexColorRegex = /^#[0-9a-f]{6}$/;
 
 export default function ProductsPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -92,6 +95,8 @@ export default function ProductsPage() {
   const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
+  const [currentColorInput, setCurrentColorInput] = useState("");
 
   const [loadingAction, setLoadingAction] = useState(false);
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
@@ -250,6 +255,8 @@ export default function ProductsPage() {
     setQuantity("");
     setFormError(null);
     setSelectedStyle("");
+    setColors([]);
+    setCurrentColorInput("");
   };
 
   const populateFrom = (p: Product) => {
@@ -262,9 +269,53 @@ export default function ProductsPage() {
     setCategories(Array.isArray(p.categories) ? p.categories : []);
     setVariants(Array.isArray(p.variants) ? p.variants : []);
     setSelectedStyle(Array.isArray(p.styles) && p.styles.length ? p.styles[0] : "");
+    setColors(Array.isArray(p.colors) ? p.colors : []);
     setYear(typeof p.year === "number" ? String(p.year) : "");
     setQuantity(typeof p.inventory === "number" ? String(p.inventory) : "");
-    setEditImageFiles([]); // <-- ADD THIS
+    setEditImageFiles([]);
+    setCurrentColorInput("");
+  };
+
+ const handleColorInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      // Clear any previous error
+      setFormError(null); 
+      
+      const newColor = currentColorInput.trim().toLowerCase();
+      
+      if (!newColor) {
+        // Do nothing if the input is empty
+        return;
+      }
+      
+      // Test against the regex
+      if (!hexColorRegex.test(newColor)) {
+        setFormError("Invalid format. Must be a 6-digit hex code (e.g., #b5a264).");
+        return; // Don't clear the input, let the user fix it
+      }
+      
+      // Check for duplicates
+      if (colors.includes(newColor)) {
+        setFormError("This color has already been added.");
+        setCurrentColorInput(""); // Clear input since it's a duplicate
+        return;
+      }
+
+      // All checks passed: add the color and clear the input
+      setColors([...colors, newColor]);
+      setCurrentColorInput("");
+    } else {
+      // Clear error as soon as user starts typing again
+      if (formError) {
+        setFormError(null);
+      }
+    }
+  };
+
+  const removeColor = (colorToRemove: string) => {
+    setColors(colors.filter((color) => color !== colorToRemove));
   };
 
   // *** 4. ADD HANDLERS FOR STAGING/REMOVING FILES ***
@@ -355,6 +406,7 @@ export default function ProductsPage() {
           shortDescription,
           description,
           images: uploadedImageUrls, // Send the new URLs
+          colors: colors,
           categories,
           variants,
           styles: selectedStyle ? [selectedStyle] : [],
@@ -398,7 +450,6 @@ export default function ProductsPage() {
 
       // 2. Final list is existing URLs (from state) + new URLs
       const finalImageUrls = [...images, ...newUploadedUrls];
-
       const res = await fetch(`${apiBase}/api/products/${editItem._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -407,9 +458,10 @@ export default function ProductsPage() {
           title,
           artist,
           price: Number(price),
+          colors: colors,
           shortDescription,
           description,
-          images: finalImageUrls, // Send the final combined list
+          images: finalImageUrls,
           categories,
           variants,
           styles: selectedStyle ? [selectedStyle] : [],
@@ -761,7 +813,9 @@ export default function ProductsPage() {
               <div className="grid gap-6">
                 {/* Style (single select, required) */}
                 <div className="space-y-2">
-                  <Label className="block text-sm">Style <span className="text-red-500">*</span></Label>
+                  <Label className="block text-sm">
+                    Style <span className="text-red-500">*</span>
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox" className="w-full justify-between">
@@ -795,6 +849,30 @@ export default function ProductsPage() {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                </div>
+                <div>
+                  <Label className="mb-1 block text-sm">Colors</Label>
+                  <div className="flex flex-wrap gap-3">
+                    {colors.map((color) => (
+                      <Badge
+                        key={color}
+                        className="flex items-center gap-2 text-sm"
+                        variant="outline"
+                      >
+                        {color}
+                        <XIcon className="ml-2 h-4 w-4" onClick={() => removeColor(color)} />
+                      </Badge >
+                    ))}
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Add color"
+                    value={currentColorInput}
+                    onChange={(e) => setCurrentColorInput(e.target.value)}
+                    onKeyDown={handleColorInputKeyDown}
+                    className="mt-2 w-full"
+                    maxLength={7}
+                  />
                 </div>
                 <div>
                   <Label className="mb-1 block text-sm">Categories</Label>
@@ -868,15 +946,13 @@ export default function ProductsPage() {
             </TabsContent>
           </Tabs>
           {/* *** 7. UPDATE DIALOG FOOTER FOR ERROR AND LOADING STATE *** */}
-          <DialogFooter>
+        <DialogFooter>
             {formError && <p className="text-destructive text-sm mr-auto">{formError}</p>}
             <DialogClose asChild>
-              <Button variant="outline" disabled={loadingAction}>
-                Cancel
-              </Button>
+              <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={createProduct} disabled={loadingAction}>
-              {loadingAction ? "Creating..." : "Create"}
+            <Button onClick={updateProductSubmit} disabled={loadingAction}>
+              {loadingAction ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1040,7 +1116,9 @@ export default function ProductsPage() {
             </div>
             {/* Style (single select) */}
             <div className="space-y-2">
-              <Label className="block text-sm">Style <span className="text-red-500">*</span></Label>
+              <Label className="block text-sm">
+                Style <span className="text-red-500">*</span>
+              </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" role="combobox" className="w-full justify-between">
@@ -1074,6 +1152,39 @@ export default function ProductsPage() {
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+         <div>
+              <Label className="mb-1 block text-sm">Colors</Label>
+              <div className="flex flex-wrap gap-3">
+                {colors.map((color) => (
+                  <Badge
+                    key={color}
+                    // --- V -- THIS IS THE FIX -- V ---
+                    variant="secondary" // Use "secondary" for the gray background
+                    className="capitalize" // "capitalize" is a nice touch
+                  >
+                    {color}
+                    {/* Wrap the icon in a button */}
+                    <button
+                      type="button"
+                      onClick={() => removeColor(color)}
+                      className="ml-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={`Remove ${color}`}
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <Input
+                type="text"
+                placeholder="Add color"
+                value={currentColorInput}
+                onChange={(e) => setCurrentColorInput(e.target.value)}
+                onKeyDown={handleColorInputKeyDown}
+                className="mt-2 w-full"
+                maxLength={7}
+              />
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
@@ -1128,7 +1239,7 @@ export default function ProductsPage() {
               />
             </div>
             <div>
-                            <Label className="mb-1 block text-sm">Images</Label>
+              <Label className="mb-1 block text-sm">Images</Label>
               {/* List of EXISTING images */}
               {!!images.length && (
                 <div className="mb-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -1253,6 +1364,7 @@ export default function ProductsPage() {
             </div>
           </div>
           <DialogFooter>
+            {formError && <p className="text-destructive text-sm mr-auto">{formError}</p>}
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>

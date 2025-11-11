@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image"; // 1. Add Image import
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
@@ -8,12 +9,174 @@ import { Search, Sun, Moon, Menu, X } from "lucide-react";
 import { Link as ScrollLink, animateScroll as scroll } from "react-scroll";
 import { usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button"; // 2. Add Button import
+import { cn } from "@/lib/utils"; // 3. Add cn import
 
+// 4. Define Product type
+interface Product {
+  _id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  price: number;
+  compareAtPrice?: number;
+  images: string[];
+}
+
+// 5. Add Click-Outside Hook
+function useOnClickOutside(
+  ref: React.RefObject<HTMLDivElement | null>, // <-- Allow null here
+  handler: (event: MouseEvent | TouchEvent) => void,
+) {
+  useEffect(() => {
+    const listener = (event: MouseEvent | TouchEvent) => {
+      if (!ref.current || ref.current.contains(event.target as Node)) {
+        return;
+      }
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
+
+// 6. Create the new ProductSearch component
+function ProductSearch({ onClose }: { onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+  // Focus the input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Debounced search effect
+  useEffect(() => {
+    if (query.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const timer = setTimeout(() => {
+      const fetchResults = async () => {
+        const url = `${apiBase}/api/products?q=${query}&pageSize=5`;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to fetch");
+          const data = await res.json();
+          if (data.ok) setResults(data.items);
+        } catch (e) {
+          console.error(e);
+          setResults([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchResults();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [query, apiBase]);
+
+  // Handle closing search when clicking outside
+  useOnClickOutside(searchRef, onClose);
+
+  return (
+    <div ref={searchRef} className="relative w-full">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search artworks, artists..."
+        className="pl-9 h-11" // Match height
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      />
+      <button
+        type="button"
+        className="h-9 w-9 inline-flex items-center justify-center rounded-md absolute right-1.5 top-1/2 -translate-y-1/2 hover:bg-muted"
+        aria-label="Close search"
+        onClick={onClose}
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      {/* --- Search Results Dropdown --- */}
+      {query.length > 1 && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-card border shadow-lg rounded-md overflow-hidden animate-in fade-in-0 zoom-in-95">
+          {loading && (
+            <div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>
+          )}
+          {!loading && results.length === 0 && (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No results found for &quot;{query}&quot;
+            </div>
+          )}
+          {!loading && results.length > 0 && (
+            <ul className="divide-y divide-border">
+              {results.map((product) => (
+                <li key={product._id}>
+                  <Link
+                    href={`/product/${product.slug}`}
+                    onClick={onClose}
+                    // 1. Add "group" here
+                    className="group flex items-center gap-3 p-3 dark:hover:bg-accent/50 hover:bg-accent transition-colors"
+                  >
+                    <Image
+                      src={product.images?.[0] || "/hero-1.svg"}
+                      alt={product.title}
+                      width={40}
+                      height={40}
+                      className="rounded object-cover aspect-square bg-muted"
+                    />
+                    <div className="flex-1 overflow-hidden">
+                      {/* 2. Add "group-hover:text-accent-foreground" here */}
+                      <p className="font-medium truncate text-sm  group-hover:text-white">
+                        {product.title}
+                      </p>
+                      {/* 3. Add "group-hover:text-accent-foreground" here */}
+                      <p className="text-sm text-muted-foreground group-hover:text-accent-foreground dark:text-white">
+                        ${product.price}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+              <li className="p-2">
+                <Button
+                  variant="ghost"
+                  className="w-full hover:text-white"
+                  asChild
+                  onClick={onClose}
+                >
+                  <Link href={`/shop?q=${query}`}>View all results</Link>
+                </Button>
+              </li>
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- (useTheme hook is unchanged) ---
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    // Initialize theme from localStorage or system preference
     const stored = (typeof window !== "undefined" && localStorage.getItem("theme")) as
       | "light"
       | "dark"
@@ -45,7 +208,8 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement | null>(null);
+  // This ref is no longer needed here, it's inside ProductSearch
+  // const searchRef = useRef<HTMLInputElement | null>(null);
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -58,14 +222,7 @@ export default function Header() {
 
   useEffect(() => setMounted(true), []);
 
-  // Focus the search input when opened
-  useEffect(() => {
-    if (searchOpen) {
-      // slight delay to allow mount/animation
-      const t = setTimeout(() => searchRef.current?.focus(), 50);
-      return () => clearTimeout(t);
-    }
-  }, [searchOpen]);
+  // Focus logic is now inside ProductSearch
 
   const links = [
     { label: "About", href: "/about" },
@@ -178,31 +335,15 @@ export default function Header() {
         initial={false}
         animate={searchOpen ? { height: "auto", opacity: 1 } : { height: 0, opacity: 0 }}
         transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
-        className="overflow-hidden border-t border-border"
+        className="border-t border-border"
       >
         <div className="container py-3">
-          <div className="flex items-center gap-3">
-            <Input
-              ref={searchRef as any}
-              placeholder="Search artworks, artists, collections…"
-              aria-label="Search"
-              className="h-11 flex-1"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setSearchOpen(false);
-              }}
-            />
-            <button
-              onClick={() => setSearchOpen(false)}
-              className="h-11 px-3 rounded-md hover:bg-muted text-sm bg-muted/70"
-              aria-label="Close search"
-            >
-              Close
-            </button>
-          </div>
+          {/* 7. Replaced the simple Input with the ProductSearch component */}
+          {searchOpen && <ProductSearch onClose={() => setSearchOpen(false)} />}
         </div>
       </motion.div>
 
-      {/* Mobile full-screen menu via portal to avoid transform clipping & ensure proper backdrop blur */}
+      {/* Mobile full-screen menu via portal */}
       {mounted &&
         open &&
         createPortal(
@@ -230,6 +371,12 @@ export default function Header() {
                   <X className="h-5 w-5" />
                 </button>
               </div>
+
+              {/* 8. Added ProductSearch to mobile menu */}
+              <div className="mt-6">
+                <ProductSearch onClose={() => setOpen(false)} />
+              </div>
+
               <div className="mt-10 flex-1 grid place-items-center">
                 <ul className="text-center space-y-6">
                   {links.map((link) => {

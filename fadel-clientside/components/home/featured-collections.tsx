@@ -57,7 +57,7 @@ export default function FeaturedCollections({ id = "collections" }: { id?: strin
                     sizes="(min-width: 768px) 33vw, 100vw"
                     className="object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/15 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/35 via-black/15 to-transparent" />
                   <div className="absolute inset-0 grid place-items-center text-center px-6">
                     <div>
                       <h3

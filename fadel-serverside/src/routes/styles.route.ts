@@ -12,9 +12,9 @@ const router = Router();
 
 // Public endpoint for in-use styles (for storefront filters)
 router.get("/in-use", listStylesInUse);
+router.get("/", listStyles);
 
 // Admin-protected management endpoints
-router.get("/", authRequired, listStyles);
 router.post("/", authRequired, createStyle);
 router.put("/:id", authRequired, updateStyle);
 router.delete("/:id", authRequired, deleteStyle);
