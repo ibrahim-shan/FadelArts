@@ -42,16 +42,37 @@ export default function Pagination({
   current = 1,
   total = 3,
   basePath = "/shop",
+  searchParams,
 }: {
   current?: number;
   total?: number;
   basePath?: string;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Pagination] render", { current, total, basePath, searchParams });
+  }
   const items = buildPages(current, total);
   const prev = Math.max(1, current - 1);
   const next = Math.min(total, current + 1);
 
-  const pageHref = (p: number) => `${basePath}?page=${p}`;
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (searchParams) {
+      Object.entries(searchParams).forEach(([k, v]) => {
+        if (typeof v === "undefined") return;
+        // normalize values to string
+        const sv = Array.isArray(v) ? v[0] : v;
+        if (sv != null && sv !== "") params.set(k, String(sv));
+      });
+    }
+    params.set("page", String(p));
+    const href = `${basePath}?${params.toString()}`;
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Pagination] pageHref", p, "->", href);
+    }
+    return href;
+  };
 
   return (
     <nav aria-label="Pagination" className="mt-8 flex items-center justify-center gap-2">
@@ -60,6 +81,7 @@ export default function Pagination({
           current === 1 ? "pointer-events-none opacity-50" : ""
         }`}
         href={pageHref(prev)}
+        scroll={true}
       >
         Previous
       </Link>
@@ -73,6 +95,7 @@ export default function Pagination({
             <li key={it}>
               <Link
                 href={pageHref(it)}
+                scroll={true}
                 className={`h-10 min-w-10 px-3 inline-flex items-center justify-center rounded-md border text-sm transition-colors ${
                   it === current
                     ? "bg-primary text-primary-foreground border-primary"
@@ -91,6 +114,7 @@ export default function Pagination({
           current === total ? "pointer-events-none opacity-50" : ""
         }`}
         href={pageHref(next)}
+        scroll={true}
       >
         Next
       </Link>

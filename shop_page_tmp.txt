@@ -5,8 +5,6 @@ import Reveal from "@/components/reveal";
 import PageHeader from "@/components/page-header";
 import ShopToolbar from "@/components/shop/toolbar";
 import Pagination from "@/components/ui/pagination";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Shop — Fadel Art",
@@ -29,20 +27,12 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   const url = new URL(`${apiBase}/api/products`);
 
-  // Pass all search params from the page URL to the API (normalize sort)
-  const entries = Object.entries(searchParams).map(([k, v]) => [k, v ? String(v) : undefined]);
-  const map: Record<string, string | undefined> = Object.fromEntries(entries);
-  if (map.sort === "price-asc") map.sort = "price_asc";
-  if (map.sort === "price-desc") map.sort = "price_desc";
-  if (map.sort === "name") map.sort = "newest";
-  Object.entries(map).forEach(([key, value]) => {
-    if (value) url.searchParams.set(key, value);
+  // Pass all search params from the page URL to the API
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value) {
+      url.searchParams.set(key, String(value));
+    }
   });
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Shop/getProducts] searchParams=", map);
-    console.log("[Shop/getProducts] API URL=", url.toString());
-  }
 
   // --- THIS WAS THE FIX ---
   // Set default page size to 6 if not provided
@@ -51,23 +41,17 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
   }
 
   try {
-    const res = await fetch(url.toString(), { cache: "no-store", next: { revalidate: 0 } });
+    const res = await fetch(url.toString(), {
+      cache: "no-store", // Don't cache shop pages
+    });
 
     if (!res.ok) {
       console.error("Failed to fetch products:", res.statusText);
       // --- THIS WAS THE FIX (fallback) ---
       return { items: [], total: 0, page: 1, pageSize: 6 };
     }
-
+    
     const data = await res.json();
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[Shop/getProducts] result:", {
-        items: Array.isArray(data.items) ? data.items.length : 0,
-        total: data.total,
-        page: data.page,
-        pageSize: data.pageSize,
-      });
-    }
     return {
       items: (data.items || []) as Product[],
       total: (data.total || 0) as number,
@@ -86,12 +70,11 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const sp = await searchParams;
-  const spKey = JSON.stringify(sp);
+  
   // --- FETCH DATA ---
-  const { items: products, total, page, pageSize } = await getProducts(sp);
+  const { items: products, total, page, pageSize } = await getProducts(searchParams);
 
   // Calculate total pages for pagination
   const totalPages = Math.ceil(total / pageSize);
@@ -108,12 +91,14 @@ export default async function ShopPage({
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
             <ShopFilters />
             <div>
-              <Reveal key={spKey}>
+              <Reveal>
                 <ShopToolbar />
-
+                
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {products.length === 0 ? (
-                    <p className="col-span-full text-muted-foreground">No products found.</p>
+                    <p className="col-span-full text-muted-foreground">
+                      No products found.
+                    </p>
                   ) : (
                     products.map((product) => (
                       <ProductCard
@@ -128,12 +113,13 @@ export default async function ShopPage({
                     ))
                   )}
                 </div>
+                
 
                 <Pagination
                   current={page}
                   total={totalPages}
                   basePath="/shop"
-                  searchParams={sp}
+                  searchParams={searchParams}
                 />
               </Reveal>
             </div>

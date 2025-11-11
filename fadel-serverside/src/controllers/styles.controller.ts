@@ -84,3 +84,14 @@ export const deleteStyle = asyncHandler(async (req: Request, res: Response) => {
   await Style.findByIdAndDelete(id);
   res.json({ ok: true });
 });
+
+// Public: list styles that are referenced by at least one published product
+export const listStylesInUse = asyncHandler(async (_req: Request, res: Response) => {
+  const names = await Product.distinct("styles", { published: true });
+  const filtered = (names || []).filter((n) => typeof n === "string" && n.trim().length);
+  if (!filtered.length) return res.json({ ok: true, items: [], total: 0, page: 1, pageSize: 0 });
+  const items = await Style.find({ name: { $in: filtered } })
+    .select("name")
+    .lean();
+  res.json({ ok: true, items, total: items.length, page: 1, pageSize: items.length });
+});

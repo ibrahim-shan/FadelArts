@@ -63,3 +63,14 @@ export const deleteCategory = asyncHandler(async (req: Request, res: Response) =
   if (!r) return res.status(404).json({ ok: false, error: "Not found" });
   res.json({ ok: true });
 });
+
+// Public: list categories that are referenced by at least one published product
+export const listCategoriesInUse = asyncHandler(async (_req: Request, res: Response) => {
+  const ids = await Product.distinct("categories", { published: true });
+  const filtered = (ids || []).filter(Boolean);
+  if (!filtered.length) return res.json({ ok: true, items: [], total: 0, page: 1, pageSize: 0 });
+  const items = await Category.find({ _id: { $in: filtered } })
+    .select("name")
+    .lean();
+  res.json({ ok: true, items, total: items.length, page: 1, pageSize: items.length });
+});
