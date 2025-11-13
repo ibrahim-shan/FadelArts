@@ -3,7 +3,8 @@ import Reveal from "@/components/reveal";
 
 export const metadata: Metadata = {
   title: "Terms of Service — Fadel Art",
-  description: "Terms and conditions for using Fadel Art Shop.",
+  description:
+    "Terms of Service outlining the rules, obligations, and legal conditions governing the use of the Fadel Art platform.",
 };
 
 export default function TermsPage() {

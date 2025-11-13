@@ -3,7 +3,8 @@ import Reveal from "@/components/reveal";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — Fadel Art",
-  description: "How Fadel Art Shop collects, uses, and protects your data.",
+  description:
+    "Privacy policy outlining how Fadel Art collects, processes, stores, and safeguards user information.",
 };
 
 export default function PrivacyPage() {

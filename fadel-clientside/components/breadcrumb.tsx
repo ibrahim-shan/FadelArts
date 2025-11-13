@@ -18,7 +18,7 @@ export default function Breadcrumb({ items }: { items: Crumb[] }) {
               {c.href && !isLast ? (
                 <Link
                   href={c.href}
-                  className="hover:text-accent transition-colors duration-200 ease-[var(--easing)]"
+                  className="hover:text-accent transition-colors duration-200 ease-(--easing)"
                 >
                   {c.label}
                 </Link>

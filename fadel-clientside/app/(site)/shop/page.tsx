@@ -10,7 +10,8 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Shop — Fadel Art",
-  description: "Browse paintings by category, style, size, and color.",
+  description:
+    "Shop page listing available artworks on Fadel Art, with filtering options for category, style, size, and color.",
 };
 
 // --- ADD PRODUCT TYPE ---

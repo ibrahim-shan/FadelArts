@@ -9,7 +9,8 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Contact — Fadel Art",
-  description: "Get in touch with Fadel Art: questions, commissions, support.",
+  description:
+    "Contact information for Fadel Art, including available communication channels for inquiries and platform-related requests.",
 };
 
 type ContactInfo = {

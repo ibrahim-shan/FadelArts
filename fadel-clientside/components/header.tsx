@@ -6,7 +6,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Search, Sun, Moon, Menu, X } from "lucide-react";
-import { Link as ScrollLink, animateScroll as scroll } from "react-scroll";
+import { Link as ScrollLink } from "react-scroll";
 import { usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button"; // 2. Add Button import
@@ -241,15 +241,19 @@ export default function Header() {
     >
       <div className="container h-16 flex items-center justify-between gap-4">
         {/* Left: Logo */}
-        <a
-          onClick={() => scroll.scrollToTop({ duration: 500, smooth: true })}
+        <Link
+          href="/"
           className="flex items-center gap-2 group cursor-pointer"
-          aria-label="Fadel Art Home"
+          aria-label="Fadel Art Logo"
         >
-          <span className="text-xl font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
-            Fadel Art
-          </span>
-        </a>
+          <Image
+            src={theme === "dark" ? "/images/logo-light.png" : "/images/logo-dark.png"}
+            alt="Fadel Art Logo"
+            width={150}
+            height={150}
+            priority
+          />
+        </Link>
 
         {/* Middle: Nav Links (desktop) */}
         <nav aria-label="Main navigation" className="hidden md:flex items-center gap-6">

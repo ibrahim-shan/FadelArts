@@ -18,8 +18,20 @@ const bodyFont = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Fadel Art — New Website",
-  description: "E-commerce for art paintings (coming soon).",
+  title: "Fadel Arts — Curated Hand-Drawn and Digital Artworks",
+  description:
+    "An online platform for purchasing original hand-drawn and digital art pieces. High-resolution artwork, verified artist collections, and secure online checkout.",
+
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

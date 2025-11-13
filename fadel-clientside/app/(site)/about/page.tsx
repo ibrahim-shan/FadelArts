@@ -7,7 +7,7 @@ import ValuesStrip from "@/components/about/values-strip";
 export const metadata: Metadata = {
   title: "About — Fadel Art",
   description:
-    "Learn about Fadel Art: our story, vision, and the passion behind our curated paintings.",
+    "Information about Fadel Art, including its purpose, the type of artwork offered, and the structure of the platform.",
 };
 
 export default function AboutPage() {
