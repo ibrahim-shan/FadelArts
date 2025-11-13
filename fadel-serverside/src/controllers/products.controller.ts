@@ -280,17 +280,18 @@ export const listRelatedProducts = asyncHandler(async (req: Request, res: Respon
 });
 
 export const getPriceRange = asyncHandler(async (_req: Request, res: Response) => {
-  const [minDoc] = await Product.find({ published: true, price: { $ne: null } })
+  const [minDoc] = await Product.find({ price: { $ne: null } })
     .sort({ price: 1 })
     .select("price")
     .limit(1)
     .lean();
-  const [maxDoc] = await Product.find({ published: true, price: { $ne: null } })
+  const [maxDoc] = await Product.find({ price: { $ne: null } })
     .sort({ price: -1 })
     .select("price")
     .limit(1)
     .lean();
-  const min = 0;
+
+  const min = typeof minDoc?.price === "number" ? minDoc.price : 0;
   const max = typeof maxDoc?.price === "number" ? maxDoc.price : 0;
   res.json({ ok: true, min, max, actualMin: typeof minDoc?.price === "number" ? minDoc.price : 0 });
 });

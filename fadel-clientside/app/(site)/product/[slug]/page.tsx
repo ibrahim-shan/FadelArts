@@ -7,6 +7,13 @@ import ProductTabs from "@/components/product/tabs";
 import RelatedProducts from "@/components/product/related";
 import ProductDetailsClient from "@/components/product/product-details";
 
+type ContactInfo = {
+  email?: string;
+  phone?: string;
+  location?: string;
+  hours?: string;
+  mapEmbedUrl?: string;
+};
 // 1. Define the Product type (no change)
 interface Product {
   _id: string;
@@ -30,12 +37,28 @@ interface Product {
   variants?: { name: string; values: string[] }[];
 }
 
+async function getContactInfo(): Promise<ContactInfo> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  try {
+    const res = await fetch(`${apiBase}/api/settings/contact/public`, {
+      // Revalidate this data, e.g., every 15 minutes
+      next: { revalidate: 900 },
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.ok ? data.info : {};
+  } catch (error) {
+    console.error("Failed to fetch contact info:", error);
+    return {};
+  }
+}
+
 // 2. Create a new data-fetching function (no change)
 async function getProduct(slug: string): Promise<Product | null> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   try {
     const res = await fetch(`${apiBase}/api/products/${slug}`, {
-      cache: "no-store",
+      next: { revalidate: 3600 },
     });
     if (!res.ok) {
       return null;
@@ -69,10 +92,12 @@ export async function generateMetadata({
 // 4. Update ProductPage (WITH THE FIX)
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const [product, contactInfo] = await Promise.all([getProduct(slug), getContactInfo()]);
   if (!product) return notFound();
 
   const { title, images } = product;
+  const mainImage = product.images?.[0];
+  const productPath = `/product/${product.slug}`;
 
   return (
     <main>
@@ -94,7 +119,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
             {/* 3. Render the new client component for all details */}
             <div>
-              <ProductDetailsClient product={product} />
+              <ProductDetailsClient
+                product={product}
+                phoneNumber={contactInfo.phone}
+                productImage={mainImage}
+                productUrlPath={productPath}
+              />
             </div>
           </div>
         </div>

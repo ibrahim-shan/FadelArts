@@ -25,9 +25,7 @@ async function getContactInfo(): Promise<ContactInfo> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   try {
     const res = await fetch(`${apiBase}/api/settings/contact/public`, {
-      // --- THIS IS THE FIX ---
-      // Replace the revalidate timer with "no-store" to force a fresh fetch
-      cache: "no-store",
+      next: { revalidate: 86400 },
     });
     if (!res.ok) return {};
     const data = await res.json();

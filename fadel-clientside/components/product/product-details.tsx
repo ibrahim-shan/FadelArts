@@ -30,10 +30,18 @@ interface Product {
   variants?: { name: string; values: string[] }[];
 }
 
-export default function ProductDetailsClient({ product }: { product: Product }) {
+export default function ProductDetailsClient({
+  product,
+  phoneNumber,
+  productUrlPath,
+}: {
+  product: Product;
+  phoneNumber?: string;
+  productImage?: string; // <-- ADD THIS
+  productUrlPath?: string; // <-- ADD THIS
+}) {
   const {
     title,
-    slug,
     artist,
     price,
     compareAtPrice,
@@ -56,25 +64,49 @@ export default function ProductDetailsClient({ product }: { product: Product }) 
   const allVariantsSelected = variants.length === Object.keys(selectedValues).length;
 
   // 3. Build the WhatsApp message with selected variants
+  // ... (inside the ProductDetailsClient component) ...
+
+  // ... (inside the ProductDetailsClient component) ...
+
   const buildWhatsAppMessage = () => {
-    // e.g., "Size: M, Frame: Black"
     const selectedVariantsText = Object.entries(selectedValues)
-      .map(([name, value]) => `${name}: ${value}`)
-      .join(", ");
+      .map(([name, value]) => `- ${name}: ${value}`)
+      .join("\n");
 
-    const baseMessage = `Hello, I'm interested in "${title}" (${slug})`;
+    const fullProductUrl = productUrlPath
+      ? `${window.location.origin}${productUrlPath}`
+      : "Link not available";
 
-    // Add variant text if it exists
-    const fullMessage = selectedVariantsText
-      ? `${baseMessage} - ${selectedVariantsText}.`
-      : `${baseMessage}.`;
+    const messageParts = [
+      `✨ *New Order Inquiry!*`,
+      `\n🎨 *Product:* ${title}`,
+      `\n🔗 *Link:* ${fullProductUrl}`,
+    ];
 
-    const waHref = `https://wa.me/${
-      process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ""
-    }?text=${encodeURIComponent(fullMessage)}`;
+    if (selectedVariantsText) {
+      messageParts.push(`\n✅ *Options Selected:*`);
+      messageParts.push(selectedVariantsText);
+    }
 
-    return waHref;
+    messageParts.push(`\n\nHello, I’m interested in this product. 👋`);
+
+    const fullMessage = messageParts.join("\n");
+
+    const cleanPhoneNumber = phoneNumber ? phoneNumber.replace(/[\s+()-]/g, "") : "";
+
+    // Use api.whatsapp.com/send first (better emoji support)
+    // Fallback to wa.me if necessary
+    const encodedText = encodeURIComponent(fullMessage);
+    const apiHref = `https://api.whatsapp.com/send?phone=${cleanPhoneNumber}&text=${encodedText}`;
+
+    // You might choose to always use api.whatsapp.com/send,
+    // or branch based on environment or user agent.
+    return apiHref; // ← return this as default
+
+    // return waMeHref; // ← option if you choose to use wa.me instead
   };
+
+  // ... (rest of the component) ...
 
   return (
     <Reveal>

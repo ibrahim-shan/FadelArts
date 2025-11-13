@@ -14,7 +14,6 @@ export const metadata: Metadata = {
     "Shop page listing available artworks on Fadel Art, with filtering options for category, style, size, and color.",
 };
 
-// --- ADD PRODUCT TYPE ---
 type Product = {
   _id: string;
   slug: string;
@@ -25,7 +24,35 @@ type Product = {
   images: string[];
 };
 
-// --- ADD DATA FETCHING FUNCTION ---
+type Category = { _id: string; name: string };
+type Style = { _id: string; name: string };
+type Variant = { _id: string; name: string; slug: string; values: string[] };
+
+async function getFilterData() {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  // Use a long revalidation time for this data, as it rarely changes
+  const fetchOptions = { next: { revalidate: 3600 } }; // 1 hour
+
+  try {
+    const [catRes, styleRes, colorRes, varRes] = await Promise.all([
+      fetch(`${apiBase}/api/categories/in-use`, fetchOptions),
+      fetch(`${apiBase}/api/styles/in-use`, fetchOptions),
+      fetch(`${apiBase}/api/products/colors/in-use`, fetchOptions),
+      fetch(`${apiBase}/api/variants/in-use`, fetchOptions),
+    ]);
+
+    const categories: Category[] = (await catRes.json()).items || [];
+    const styles: Style[] = (await styleRes.json()).items || [];
+    const colors: string[] = (await colorRes.json()).items || [];
+    const variants: Variant[] = (await varRes.json()).items || [];
+
+    return { categories, styles, colors, variants };
+  } catch (error) {
+    console.error("Failed to fetch filter data:", error);
+    return { categories: [], styles: [], colors: [], variants: [] };
+  }
+}
+
 async function getProducts(searchParams: { [key: string]: string | string[] | undefined }) {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   const url = new URL(`${apiBase}/api/products`);
@@ -45,18 +72,16 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
     console.log("[Shop/getProducts] API URL=", url.toString());
   }
 
-  // --- THIS WAS THE FIX ---
   // Set default page size to 6 if not provided
   if (!url.searchParams.has("pageSize")) {
     url.searchParams.set("pageSize", "6");
   }
 
   try {
-    const res = await fetch(url.toString(), { cache: "no-store", next: { revalidate: 0 } });
+    const res = await fetch(url.toString(), { next: { revalidate: 60 } });
 
     if (!res.ok) {
       console.error("Failed to fetch products:", res.statusText);
-      // --- THIS WAS THE FIX (fallback) ---
       return { items: [], total: 0, page: 1, pageSize: 6 };
     }
 
@@ -73,17 +98,14 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
       items: (data.items || []) as Product[],
       total: (data.total || 0) as number,
       page: (data.page || 1) as number,
-      // --- THIS WAS THE FIX (default) ---
       pageSize: (data.pageSize || 6) as number,
     };
   } catch (error) {
     console.error("Fetch error for products:", error);
-    // --- THIS WAS THE FIX (error) ---
     return { items: [], total: 0, page: 1, pageSize: 6 };
   }
 }
 
-// --- UPDATE THE COMPONENT SIGNATURE ---
 export default async function ShopPage({
   searchParams,
 }: {
@@ -91,8 +113,8 @@ export default async function ShopPage({
 }) {
   const sp = await searchParams;
 
-  // --- FETCH DATA ---
-  const { items: products, total, page, pageSize } = await getProducts(sp);
+  const [{ items: products, total, page, pageSize }, { categories, styles, colors, variants }] =
+    await Promise.all([getProducts(sp), getFilterData()]);
 
   // Calculate total pages for pagination
   const totalPages = Math.ceil(total / pageSize);
@@ -107,7 +129,12 @@ export default async function ShopPage({
       <section className="py-12">
         <div className="container">
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
-            <ShopFilters />
+            <ShopFilters
+              categoriesData={categories}
+              stylesData={styles}
+              colorsData={colors}
+              variantsData={variants}
+            />
             <div>
               <Reveal>
                 <ShopToolbar />

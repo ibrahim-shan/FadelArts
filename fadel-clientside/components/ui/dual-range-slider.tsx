@@ -37,7 +37,11 @@ export function DualRangeSlider({
     onValueChange(next);
   };
 
-  const pct = (v: number) => ((v - min) / (max - min)) * 100;
+  const pct = (v: number) => {
+    const range = max - min;
+    if (range === 0) return 0; // <-- This prevents division by zero
+    return ((v - min) / range) * 100;
+  };
 
   return (
     <div className={className}>

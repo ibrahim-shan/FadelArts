@@ -16,35 +16,44 @@ declare global {
   }
 }
 
-type CheckboxOption = { id: string; label: string };
+// --- 1. PROPS AND TYPES (DEFINED ONCE) ---
 type Category = { _id: string; name: string };
 type Style = { _id: string; name: string };
 type Variant = { _id: string; name: string; slug: string; values: string[] };
 
-// Categories and styles are fetched from backend
+type ShopFiltersProps = {
+  categoriesData: Category[];
+  stylesData: Style[];
+  colorsData: string[];
+  variantsData: Variant[];
+};
+
+type CheckboxOption = { id: string; label: string };
+
+// Categories and styles fallbacks
 const CATEGORIES_FALLBACK: CheckboxOption[] = [];
 const STYLES_FALLBACK: CheckboxOption[] = [];
+
+// --- HELPER COMPONENTS (Unchanged) ---
 
 function Collapsible({
   title,
   children,
-  open, // <-- 1. Accept 'open' prop
-  onOpenChange, // <-- 2. Accept 'onOpenChange' prop
+  open,
+  onOpenChange,
 }: {
   title: string;
   children: React.ReactNode;
-  open: boolean; // <-- 3. Make 'open' required
-  onOpenChange: (open: boolean) => void; // <-- 4. Make 'onOpenChange' required
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  // const [open, setOpen] = useState(defaultOpen); // <-- 5. REMOVE internal state
-
   return (
     <div className="py-2 border-b border-border/60 last:border-b-0">
       <button
         type="button"
-        onClick={() => onOpenChange(!open)} // <-- 6. Use onOpenChange
+        onClick={() => onOpenChange(!open)}
         className="w-full flex items-center justify-between py-2 text-left"
-        aria-expanded={open} // <-- 7. Use 'open' prop
+        aria-expanded={open}
       >
         <span className="text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
           {title}
@@ -54,7 +63,7 @@ function Collapsible({
         />
       </button>
       <AnimatePresence initial={false}>
-        {open && ( // <-- 8. Use 'open' prop
+        {open && (
           <motion.div
             key="content"
             initial={{ height: 0, opacity: 0 }}
@@ -70,6 +79,7 @@ function Collapsible({
     </div>
   );
 }
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-4 border-b border-border/60 last:border-b-0">
@@ -118,21 +128,22 @@ function Checkbox({
   );
 }
 
-export default function ShopFilters() {
+// --- 2. MAIN COMPONENT (Accepts props, no client-side fetching) ---
+export default function ShopFilters({
+  categoriesData,
+  stylesData,
+  colorsData,
+  variantsData,
+}: ShopFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const urlSearch = useSearchParams();
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-  const [categoriesData, setCategoriesData] = useState<Category[]>([]);
-  const [stylesData, setStylesData] = useState<Style[]>([]);
-  const [colorsData, setColorsData] = useState<string[]>([]);
-  const [variantsData, setVariantsData] = useState<Variant[]>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
-  // Price range
+  // Price range state
   const PRICE_MIN = 0;
   const PRICE_STEP = 10;
   const [priceMaxBound, setPriceMaxBound] = useState<number | null>(null);
@@ -152,8 +163,6 @@ export default function ShopFilters() {
     // Categories use IDs; Styles use names
     const catSel = categoriesData.map((c) => c._id).filter((id) => !!nextSelected[id]);
     const styleSel = stylesData.map((s) => s.name).filter((name) => !!nextSelected[name]);
-
-    // Colors are just names now
     const colorSel = colorsData.filter((colorName) => !!nextSelected[colorName]);
 
     const setOrDel = (key: string, list: string[]) => {
@@ -167,11 +176,9 @@ export default function ShopFilters() {
 
     // Add dynamic variant params
     variantsData.forEach((variant) => {
-      // Find selected values for this variant, e.g., ["S", "M"]
       const selectedValues = variant.values.filter(
         (value) => !!nextSelected[`${variant.slug}_${value}`],
       );
-      // Set the param, e.g., ?size=S,M
       setOrDel(variant.slug, selectedValues);
     });
 
@@ -190,13 +197,8 @@ export default function ShopFilters() {
   };
 
   const toggle = (id: string) => {
-    // 1. Calculate the next state based on the current state
     const nextSelected = { ...selected, [id]: !selected[id] };
-
-    // 2. Update the state (this queues a re-render)
     setSelected(nextSelected);
-
-    // 3. Call the function that pushes to the router (this is now safe)
     buildAndPush(nextSelected);
   };
 
@@ -209,7 +211,9 @@ export default function ShopFilters() {
     setPriceMax(String(priceMaxBound ?? 0));
     buildAndPush(cleared, PRICE_MIN, priceMaxBound ?? undefined);
   };
+
   const paramsString = urlSearch.toString();
+
   // Initialize state from URL on mount
   useEffect(() => {
     if (priceMaxBound === null) return;
@@ -282,62 +286,70 @@ export default function ShopFilters() {
     });
   }, [paramsString, priceMaxBound, variantsData, categoriesData, stylesData, urlSearch]);
 
-  // Fetch global price upper bound
   useEffect(() => {
+    // --- ADDED: Handle component unmounting ---
+    let isMounted = true;
+
     (async () => {
+      let bound = 0; // Default to 0 in case of error
+      let fetchFailed = false;
+
       try {
         const r = await fetch(`${apiBase}/api/products/price-range/global`).then((x) => x.json());
         if (r?.ok && typeof r.max === "number") {
-          const bound = Math.max(0, r.max);
-          if (bound <= 0) return;
-          setPriceMaxBound(bound);
-          const maxRaw = urlSearch.get("maxPrice");
-          const minRaw = urlSearch.get("minPrice");
-          const urlMax = Number(maxRaw);
-          const urlMin = Number(minRaw);
-          const useUrlMax =
-            maxRaw != null && maxRaw !== "" && Number.isFinite(urlMax) && urlMax > 0;
-          const useUrlMin = minRaw != null && minRaw !== "" && Number.isFinite(urlMin);
-          const nextMax = useUrlMax
-            ? Math.min(bound, Math.max(urlMax, PRICE_MIN + PRICE_STEP))
-            : bound;
-          const nextMin = useUrlMin
-            ? Math.max(PRICE_MIN, Math.min(urlMin, nextMax - PRICE_STEP))
-            : PRICE_MIN;
-          setRangeMin(nextMin);
-          setRangeMax(nextMax);
-          setPriceMin(String(nextMin));
-          setPriceMax(String(nextMax));
+          bound = Math.max(0, r.max);
         }
-      } catch {}
-    })();
-  }, [apiBase, urlSearch]);
+      } catch (error) {
+        console.error("Failed to fetch price range:", error);
+        fetchFailed = true; // Mark as failed
+      }
 
-  // Fetch categories, styles, COLORS, and VARIANTS
-  useEffect(() => {
-    (async () => {
-      try {
-        const [cs, ss, cos, vs] = await Promise.all([
-          fetch(`${apiBase}/api/categories/in-use`)
-            .then((r) => r.json())
-            .catch(() => null),
-          fetch(`${apiBase}/api/styles/in-use`)
-            .then((r) => r.json())
-            .catch(() => null),
-          fetch(`${apiBase}/api/products/colors/in-use`)
-            .then((r) => r.json())
-            .catch(() => null),
-          fetch(`${apiBase}/api/variants/in-use`) // Fetch variants
-            .then((r) => r.json())
-            .catch(() => null),
-        ]);
-        if (cs && cs.ok && Array.isArray(cs.items)) setCategoriesData(cs.items);
-        if (ss && ss.ok && Array.isArray(ss.items)) setStylesData(ss.items);
-        if (cos && cos.ok && Array.isArray(cos.items)) setColorsData(cos.items);
-        if (vs && vs.ok && Array.isArray(vs.items)) setVariantsData(vs.items); // Set variants
-      } catch {}
+      // --- Don't update state if component unmounted ---
+      if (!isMounted) return;
+
+      // --- THIS IS THE FIX ---
+      // 1. ALWAYS set the price bound. This unblocks the UI.
+      //    (It will be 0 if fetch failed or max price was 0)
+      setPriceMaxBound(bound);
+      // --- END FIX ---
+
+      // 2. Determine initial state from URL params
+      const maxRaw = urlSearch.get("maxPrice");
+      const minRaw = urlSearch.get("minPrice");
+      const urlMax = Number(maxRaw);
+      const urlMin = Number(minRaw);
+      const useUrlMax = maxRaw != null && maxRaw !== "" && Number.isFinite(urlMax) && urlMax > 0;
+      const useUrlMin = minRaw != null && minRaw !== "" && Number.isFinite(urlMin);
+
+      const nextMax = useUrlMax ? Math.min(bound, Math.max(urlMax, PRICE_MIN + PRICE_STEP)) : bound;
+      const nextMin = useUrlMin
+        ? Math.max(PRICE_MIN, Math.min(urlMin, nextMax - PRICE_STEP))
+        : PRICE_MIN;
+
+      // 3. Set the final state
+      setRangeMin(nextMin);
+      setRangeMax(nextMax);
+      setPriceMin(String(nextMin));
+      setPriceMax(String(nextMax));
+
+      // This is a special case to fix the inputs if the API failed
+      if (fetchFailed || bound <= 0) {
+        setPriceMin("0");
+        setPriceMax("0");
+      }
     })();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+
+    // We only want this hook to run ONCE on mount.
+    // The *other* useEffect hook (at line 177) will handle URL changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
+
+  // --- 3. THE DATA-FETCHING useEffect FOR CATEGORIES, STYLES, ETC. IS NOW REMOVED ---
 
   return (
     <aside className="rounded-xl border border-border bg-card p-4 shadow-brand-sm">
@@ -350,7 +362,7 @@ export default function ShopFilters() {
         </Button>
       </div>
 
-      {/* Categories (defaultOpen removed) */}
+      {/* Categories */}
       <Collapsible
         title="Categories"
         open={!!openSections["Categories"]}
@@ -366,7 +378,7 @@ export default function ShopFilters() {
         </div>
       </Collapsible>
 
-      {/* Style (defaultOpen removed) */}
+      {/* Style */}
       <Collapsible
         title="Style"
         open={!!openSections["Style"]}
@@ -382,7 +394,7 @@ export default function ShopFilters() {
         </div>
       </Collapsible>
 
-      {/* Dynamic Variants (defaultOpen removed) */}
+      {/* Dynamic Variants */}
       {variantsData.map((variant) => (
         <Collapsible
           title={variant.name}
@@ -404,7 +416,7 @@ export default function ShopFilters() {
         </Collapsible>
       ))}
 
-      {/* Price Range (was already correct, remains a Section) */}
+      {/* Price Range */}
       <Section title="Price Range">
         {priceMaxBound !== null ? (
           <DualRangeSlider
@@ -484,37 +496,32 @@ export default function ShopFilters() {
         </div>
       </Section>
 
-      {/* Colors (was already correct, remains a Section) */}
+      {/* Colors */}
       <Section title="Colors">
         <div className="flex flex-wrap gap-3">
-          {/* 'colorName' is the hex string, e.g., "#b5a264" */}
           {colorsData.map((colorName) => {
             const lowerColor = colorName.toLowerCase();
             return (
               <label
                 key={colorName}
-                className="flex items-center gap-2 cursor-pointer rounded-full p-0.5" // Make clickable area slightly bigger
+                className="flex items-center gap-2 cursor-pointer rounded-full p-0.5"
               >
                 <UICheckbox
                   checked={!!selected[colorName]}
                   onCheckedChange={() => toggle(colorName)}
                   className="sr-only"
-                  aria-label={colorName} // Screen readers will still read the hex
+                  aria-label={colorName}
                 />
                 <span
                   className={`inline-block h-5 w-5 rounded-full ring-1 ${
                     selected[colorName] ? "ring-2 ring-primary" : "ring-border"
                   }`}
                   style={{
-                    // Use the fetched hex color directly as the background
                     background: lowerColor,
-                    // Add a border for white/very light colors
                     border: lowerColor === "#ffffff" ? "1px solid #ccc" : "none",
                   }}
-                  title={colorName} // This will show the hex code on hover
+                  title={colorName}
                 />
-                {/* The text span that displayed the color hex is now removed.
-                 */}
               </label>
             );
           })}
