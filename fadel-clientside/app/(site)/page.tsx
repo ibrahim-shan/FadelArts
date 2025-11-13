@@ -35,7 +35,7 @@ type Product = {
 async function getStyles(): Promise<Style[]> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   try {
-    const res = await fetch(`${apiBase}/api/styles`, { cache: "no-store" });
+    const res = await fetch(`${apiBase}/api/styles`, { next: { revalidate: 60 } });
     if (!res.ok) {
       console.error("Failed to fetch styles:", res.statusText);
       return [];
@@ -54,7 +54,7 @@ async function getHomepageProducts(): Promise<Product[]> {
   try {
     // Fetch 8 products
     const res = await fetch(`${apiBase}/api/products?sort=newest&pageSize=8`, {
-      cache: "no-store",
+      next: { revalidate: 60 },
     });
     if (!res.ok) {
       console.error("Failed to fetch products:", res.statusText);
