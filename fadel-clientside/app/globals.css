@@ -167,6 +167,10 @@
       "Segoe UI Emoji",
       "Segoe UI Symbol",
       sans-serif;
+
+    transition-property: color, background-color;
+    transition-duration: var(--duration-2);
+    transition-timing-function: var(--easing);
   }
   /* Hide site chrome on admin pages */
   body[data-admin="true"] header,
@@ -184,6 +188,8 @@
     color: var(--heading-foreground);
     font-weight: 600;
     letter-spacing: 0.01em;
+
+    transition: color var(--duration-2) var(--easing);
   }
   /* Fluid type ramp for large headings */
   h1 {
@@ -214,6 +220,8 @@
     font-weight: 300;
     color: var(--nav-foreground);
     letter-spacing: 0.02em;
+
+    transition: color var(--duration-2) var(--easing);
   }
   /* Text accent utility for highlights in body copy */
   .text-brand-accent {
@@ -318,7 +326,7 @@
   @media (prefers-reduced-motion: reduce) {
     * {
       animation: none !important;
-      transition: none !important;
+      /* transition: none !important; */
       scroll-behavior: auto !important;
     }
   }
