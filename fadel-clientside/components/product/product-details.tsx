@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Reveal from "@/components/reveal";
-import { FaArrowCircleRight, FaWhatsapp } from "react-icons/fa";
+import { FaWhatsapp } from "react-icons/fa";
 import VariantSelector from "@/components/product/variant-selector"; // We will modify this next
+import Image from "next/image";
 
 // Copy the Product interface from your page.tsx
 interface Product {
@@ -94,6 +95,9 @@ export default function ProductDetailsClient({ product }: { product: Product }) 
         {shortDescription || description}
       </p>
 
+      {!allVariantsSelected && (
+        <p className="mt-6 text-xs text-accent font-bold">Please select all options to order.</p>
+      )}
       {/* 4. Pass state and handler down to the (now controlled) selector */}
       <VariantSelector
         variants={variants}
@@ -123,9 +127,10 @@ export default function ProductDetailsClient({ product }: { product: Product }) 
             Order Now
           </a>
         </Button>
-        {!allVariantsSelected && (
-          <p className="mt-2 text-xs text-muted-foreground">Please select all options to order.</p>
-        )}
+      </div>
+      <div className="flex items-center gap-2 mt-8 ">
+        <Image src="/images/flag/lebanon-flag.webp" alt="Fadel Art Shop" width={20} height={20} />
+        <p className=" text-sm font-semibold text-foreground">Delivery all over Lebanon</p>
       </div>
     </Reveal>
   );

@@ -1,9 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 
-export const asyncHandler = <T extends (req: Request, res: Response, next: NextFunction) => any>(
-  fn: T,
-) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+type RouteHandler = (req: Request, res: Response, next: NextFunction) => unknown | Promise<unknown>;
+
+export function asyncHandler<T extends RouteHandler>(fn: T): RouteHandler {
+  return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
-};
+}

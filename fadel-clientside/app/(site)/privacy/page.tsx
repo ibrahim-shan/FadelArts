@@ -28,8 +28,9 @@ export default function PrivacyPage() {
               <div>
                 <h2 id="overview">1. Overview</h2>
                 <p>
-                  This Privacy Policy describes how Fadel Art Shop ("we", "our", or "us") collects,
-                  uses, and shares personal information when you use our website and services.
+                  This Privacy Policy describes how Fadel Art Shop (&quot;we&quot;, &quot;our&quot;,
+                  or &quot;us&quot;) collects, uses, and shares personal information when you use
+                  our website and services.
                 </p>
               </div>
 

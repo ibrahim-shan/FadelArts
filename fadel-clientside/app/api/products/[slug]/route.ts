@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getProductBySlug } from "@/data/products";
 
-export function GET(_: Request, { params }: { params: { slug: string } }) {
-  const product = getProductBySlug(params.slug);
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+
+  const product = getProductBySlug(slug);
   if (!product) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
   return NextResponse.json(product);
 }

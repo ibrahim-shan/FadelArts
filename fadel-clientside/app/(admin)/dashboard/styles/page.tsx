@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -90,40 +90,46 @@ export default function StylesPage() {
       if (error) {
         console.warn("Failed to delete old image from Supabase:", error.message);
       }
-    } catch (e: any) {
-      console.warn("Error during Supabase image deletion:", e.message);
+    } catch (e: unknown) {
+      console.warn(
+        "Error during Supabase image deletion:",
+        e instanceof Error ? e.message : "Unknown error",
+      );
     }
   }
 
-  async function fetchData(signal?: AbortSignal) {
-    setLoading(true);
-    try {
-      const url = new URL(`${apiBase}/api/styles`);
-      if (q) url.searchParams.set("q", q);
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("pageSize", String(pageSize));
+  const fetchData = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      try {
+        const url = new URL(`${apiBase}/api/styles`);
+        if (q) url.searchParams.set("q", q);
+        url.searchParams.set("page", String(page));
+        url.searchParams.set("pageSize", String(pageSize));
 
-      const res = await fetch(url.toString(), {
-        credentials: "include",
-        signal,
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load styles");
+        const res = await fetch(url.toString(), {
+          credentials: "include",
+          signal,
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load styles");
 
-      setItems(data.items);
-      setTotal(data.total);
-    } catch {
-      // ignore aborts
-    } finally {
-      setLoading(false);
-    }
-  }
+        setItems(data.items);
+        setTotal(data.total);
+      } catch {
+        // ignore aborts
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiBase, q, page, pageSize],
+  );
 
   useEffect(() => {
     const ctl = new AbortController();
     fetchData(ctl.signal);
     return () => ctl.abort();
-  }, [q, page]);
+  }, [q, page, fetchData]);
 
   const resetForm = () => {
     setName("");
@@ -134,7 +140,7 @@ export default function StylesPage() {
 
   async function uploadImage(file: File): Promise<string> {
     const path = `styles/${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage.from("products").upload(path, file);
+    const { error } = await supabase.storage.from("products").upload(path, file);
     if (error) throw error;
     const { data: publicUrl } = supabase.storage.from("products").getPublicUrl(path);
     return publicUrl.publicUrl;
@@ -159,8 +165,8 @@ export default function StylesPage() {
       setAddOpen(false);
       resetForm();
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to create style");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to create style");
     } finally {
       setLoadingAction(false);
     }
@@ -203,8 +209,8 @@ export default function StylesPage() {
       setEditItem(null);
       resetForm();
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to update style");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to update style");
     } finally {
       setLoadingAction(false);
     }
@@ -228,8 +234,8 @@ export default function StylesPage() {
 
       setPendingDelete(null);
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to delete style");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to delete style");
     } finally {
       setLoadingAction(false);
     }

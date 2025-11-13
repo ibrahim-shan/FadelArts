@@ -8,23 +8,28 @@ export interface AuthUser {
   role: "admin";
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthUser;
-    }
+// Replace namespace with global augmentation (ES module–safe)
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: AuthUser;
   }
 }
 
 export function authRequired(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.cookies?.[env.COOKIE_NAME];
-    if (!token) return res.status(401).json({ ok: false, error: "Unauthorized" });
+    if (!token) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
     const payload = jwt.verify(token, env.JWT_SECRET) as AuthUser & { iat: number; exp: number };
-    if (payload.role !== "admin") throw new Error("Invalid role");
+    if (payload.role !== "admin") {
+      throw new Error("Invalid role");
+    }
+
     req.user = { sub: payload.sub, email: payload.email, role: "admin" };
     next();
-  } catch (e) {
+  } catch {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 }

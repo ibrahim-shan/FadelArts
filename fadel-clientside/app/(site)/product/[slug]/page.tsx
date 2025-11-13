@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import ProductGallery from "@/components/product/gallery";
 import ProductTabs from "@/components/product/tabs";
 import RelatedProducts from "@/components/product/related";
-import VariantSelector from "@/components/product/variant-selector";
 import ProductDetailsClient from "@/components/product/product-details";
 
 // 1. Define the Product type (no change)

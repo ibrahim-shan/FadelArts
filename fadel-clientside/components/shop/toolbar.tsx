@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 
@@ -18,24 +18,27 @@ export default function ShopToolbar() {
   const [sort, setSort] = useState(currentSort);
 
   // Sync state when URL changes externally
-  useEffect(() => setQ(currentQ), [currentQ]);
-  useEffect(() => setSort(currentSort), [currentSort]);
+  useEffect(() => {
+    startTransition(() => setQ(currentQ));
+  }, [currentQ]);
 
-  const pushParams = (next: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(next).forEach(([k, v]) => {
-      if (!v) params.delete(k);
-      else params.set(k, v);
-    });
-    // Reset to first page when search/sort changes
-    params.delete("page");
-    const href = `${pathname}?${params.toString()}`;
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[Toolbar] push", next, "->", href);
-    }
-    // V-- ADD { scroll: false } HERE --V
-    router.push(href, { scroll: false });
-  };
+  useEffect(() => {
+    startTransition(() => setSort(currentSort));
+  }, [currentSort]);
+
+  const pushParams = useCallback(
+    (next: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(next).forEach(([k, v]) => {
+        if (!v) params.delete(k);
+        else params.set(k, v);
+      });
+      params.delete("page");
+      const href = `${pathname}?${params.toString()}`;
+      router.push(href, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
   // Debounce search typing
   useEffect(() => {
@@ -48,7 +51,7 @@ export default function ShopToolbar() {
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [q]);
+  }, [q, currentQ, pushParams]);
 
   const handleSortChange = (value: string) => {
     // Server expects: newest | price_asc | price_desc

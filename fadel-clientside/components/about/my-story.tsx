@@ -11,7 +11,7 @@ export default function MyStorySection() {
           <div className="grid gap-8 md:grid-cols-2 items-stretch">
             <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-brand-md">
               <Image
-                src="/about-portrait.svg"
+                src="/images/about/about-2.webp"
                 alt="Founder portrait"
                 width={1000}
                 height={1200}

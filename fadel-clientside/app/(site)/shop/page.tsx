@@ -129,12 +129,7 @@ export default async function ShopPage({
                   )}
                 </div>
 
-                <Pagination
-                  current={page}
-                  total={totalPages}
-                  basePath="/shop"
-                  searchParams={sp}
-                />
+                <Pagination current={page} total={totalPages} basePath="/shop" searchParams={sp} />
               </Reveal>
             </div>
           </div>

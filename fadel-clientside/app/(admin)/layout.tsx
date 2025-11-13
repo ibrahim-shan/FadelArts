@@ -68,7 +68,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <NavLink href="/dashboard/variants" label="Variants" />
           <NavLink href="/dashboard/styles" label="Styles" />
           <NavLink href="/dashboard/products" label="Products" />
-          <NavLink href="/dashboard/orders" label="Orders" />
           <NavLink href="/dashboard/media" label="Media" />
           <NavLink href="/dashboard/settings" label="Settings" />
         </nav>

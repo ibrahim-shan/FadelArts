@@ -18,22 +18,27 @@ function setAuthCookie(res: Response, token: string) {
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body as { email: string; password: string };
-  if (!email || !password)
+
+  if (!email || !password) {
     return res.status(400).json({ ok: false, error: "email and password are required" });
+  }
 
   const admin = await Admin.findOne({ email });
-  if (!admin) return res.status(401).json({ ok: false, error: "Invalid credentials" });
+  if (!admin) {
+    return res.status(401).json({ ok: false, error: "Invalid credentials" });
+  }
 
   const ok = await bcrypt.compare(password, admin.passwordHash);
-  if (!ok) return res.status(401).json({ ok: false, error: "Invalid credentials" });
+  if (!ok) {
+    return res.status(401).json({ ok: false, error: "Invalid credentials" });
+  }
 
   const token = jwt.sign(
     { sub: String(admin._id), email: admin.email, role: "admin" },
     env.JWT_SECRET,
-    {
-      expiresIn: "7d",
-    },
+    { expiresIn: "7d" },
   );
+
   setAuthCookie(res, token);
   res.json({ ok: true, admin: { email: admin.email } });
 });
@@ -45,6 +50,8 @@ export const logout = asyncHandler(async (_req: Request, res: Response) => {
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const user = req.user;
-  if (!user) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  if (!user) {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
   res.json({ ok: true, admin: { email: user.email } });
 });

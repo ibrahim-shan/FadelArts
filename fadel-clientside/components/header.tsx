@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image"; // 1. Add Image import
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Search, Sun, Moon, Menu, X } from "lucide-react";
@@ -10,7 +10,8 @@ import { Link as ScrollLink, animateScroll as scroll } from "react-scroll";
 import { usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button"; // 2. Add Button import
-import { cn } from "@/lib/utils"; // 3. Add cn import
+
+type NavLink = { label: string; href: string } | { label: string; scrollTo: string };
 
 // 4. Define Product type
 interface Product {
@@ -185,7 +186,7 @@ function useTheme() {
       window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initial = stored ?? (prefersDark ? "dark" : "light");
     document.documentElement.classList.toggle("dark", initial === "dark");
-    setTheme(initial);
+    startTransition(() => setTheme(initial));
   }, []);
 
   const toggle = () => {
@@ -206,7 +207,8 @@ export default function Header() {
   const { theme, toggle } = useTheme();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(true);
+
   const [searchOpen, setSearchOpen] = useState(false);
   // This ref is no longer needed here, it's inside ProductSearch
   // const searchRef = useRef<HTMLInputElement | null>(null);
@@ -220,11 +222,9 @@ export default function Header() {
     };
   }, [open]);
 
-  useEffect(() => setMounted(true), []);
-
   // Focus logic is now inside ProductSearch
 
-  const links = [
+  const links: NavLink[] = [
     { label: "About", href: "/about" },
     { label: "Shop", href: "/shop" },
     { label: "Collections", scrollTo: "collections" },
@@ -253,21 +253,22 @@ export default function Header() {
         {/* Middle: Nav Links (desktop) */}
         <nav aria-label="Main navigation" className="hidden md:flex items-center gap-6">
           {links.map((link) => {
-            const key = (link as any).href ?? (link as any).scrollTo ?? link.label;
-            if ((link as any).href) {
+            const key = "href" in link ? link.href : link.scrollTo;
+
+            if ("href" in link) {
               return (
                 <Link
                   key={key}
-                  href={(link as any).href}
+                  href={link.href}
                   className="text-sm hover:text-primary transition-base"
                 >
                   {link.label}
                 </Link>
               );
             }
-            if ((link as any).scrollTo) {
-              const id = (link as any).scrollTo as string;
-              // If not on home, link to /#id; otherwise use smooth scroll
+
+            if ("scrollTo" in link) {
+              const id = link.scrollTo;
               if (pathname !== "/") {
                 return (
                   <Link
@@ -293,6 +294,7 @@ export default function Header() {
                 </ScrollLink>
               );
             }
+
             return null;
           })}
         </nav>
@@ -380,24 +382,22 @@ export default function Header() {
               <div className="mt-10 flex-1 grid place-items-center">
                 <ul className="text-center space-y-6">
                   {links.map((link) => {
-                    const key = (link as any).href ?? (link as any).scrollTo ?? link.label;
+                    const key = "href" in link ? link.href : link.scrollTo;
                     const common =
                       "block text-2xl font-semibold hover:text-primary transition-colors text-foreground";
-                    if ((link as any).href) {
+
+                    if ("href" in link) {
                       return (
                         <li key={key}>
-                          <Link
-                            href={(link as any).href}
-                            className={common}
-                            onClick={() => setOpen(false)}
-                          >
+                          <Link href={link.href} className={common} onClick={() => setOpen(false)}>
                             {link.label}
                           </Link>
                         </li>
                       );
                     }
-                    if ((link as any).scrollTo) {
-                      const id = (link as any).scrollTo as string;
+
+                    if ("scrollTo" in link) {
+                      const id = link.scrollTo;
                       if (pathname !== "/") {
                         return (
                           <li key={key}>
@@ -427,6 +427,7 @@ export default function Header() {
                         </li>
                       );
                     }
+
                     return null;
                   })}
                 </ul>

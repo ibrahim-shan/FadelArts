@@ -80,7 +80,7 @@ export default function VariantsPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load variants");
       setItems(data.items);
       setTotal(data.total);
-    } catch (e) {
+    } catch {
       // ignore abort or surface minimal in UI via loading
     } finally {
       setLoading(false);
@@ -113,8 +113,8 @@ export default function VariantsPage() {
       setAddOpen(false);
       resetForm();
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to create variant");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to create variant");
     }
   }
 
@@ -133,8 +133,8 @@ export default function VariantsPage() {
       setEditItem(null);
       resetForm();
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to update variant");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to update variant");
     }
   }
 
@@ -148,8 +148,8 @@ export default function VariantsPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to delete");
       setPendingDelete(null);
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to delete variant");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to delete variant");
     }
   }
 
@@ -331,8 +331,8 @@ export default function VariantsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete variant?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the variant "
-              {pendingDelete?.name}".
+              This action cannot be undone. This will permanently delete the variant &quot;
+              {pendingDelete?.name}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

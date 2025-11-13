@@ -24,7 +24,7 @@ export default function ExploreByStyle({
   styles: Style[]; // This is now a required prop
 }) {
   const hover = {
-    whileHover: { scale: 1.06, y: -2, boxShadow: "var(--shadow-lg)" as any },
+    whileHover: { scale: 1.06, y: -2, boxShadow: "var(--shadow-lg)" as string },
     whileTap: { scale: 0.98 },
     transition: { type: "spring" as const, stiffness: 260, damping: 24 },
   };
@@ -56,7 +56,7 @@ export default function ExploreByStyle({
                 aria-label={`Explore ${style.name}`}
               >
                 {/* The <p> tag that was here has been moved inside the motion.div
-                */}
+                 */}
 
                 {/* Motion div for the circular image */}
                 <motion.div

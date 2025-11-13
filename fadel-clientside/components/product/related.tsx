@@ -40,7 +40,7 @@ export default function RelatedProducts({
     (async () => {
       setLoading(true); // Start loading
       const url = new URL(`${apiBase}/api/products/related`);
-      
+
       // ... (setting searchParams is correct) ...
       url.searchParams.set("currentSlug", current);
       if (categories && categories.length > 0) {
@@ -61,7 +61,7 @@ export default function RelatedProducts({
         }
 
         const data = await res.json();
-        
+
         if (data.ok && Array.isArray(data.items)) {
           setRelated(data.items);
         }
@@ -74,7 +74,7 @@ export default function RelatedProducts({
 
   // --- 3. ONLY RETURN NULL IF LOADING IS DONE AND THERE ARE NO ITEMS ---
   if (!loading && related.length === 0) {
-    return null; 
+    return null;
   }
 
   return (
@@ -101,7 +101,7 @@ export default function RelatedProducts({
             ))}
           </div>
         )}
-        
+
         {/* You can optionally add a loading skeleton here */}
         {loading && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

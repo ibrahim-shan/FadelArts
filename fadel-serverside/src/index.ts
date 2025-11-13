@@ -11,9 +11,11 @@ async function start() {
     await connectMongo(env.MONGO_URI);
     await ensureDefaultAdmin();
     server.listen(env.PORT, () => {
+      // eslint-disable-next-line no-console
       console.log(`API listening on http://localhost:${env.PORT}`);
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error("Failed to start server:", err);
     process.exit(1);
   }
@@ -22,6 +24,7 @@ async function start() {
 const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGQUIT"];
 signals.forEach((sig) => {
   process.on(sig, async () => {
+    // eslint-disable-next-line no-console
     console.log(`Received ${sig}. Shutting down...`);
     server.close(async () => {
       await disconnectMongo();

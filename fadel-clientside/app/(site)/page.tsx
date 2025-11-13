@@ -73,8 +73,8 @@ async function getHomepageProducts(): Promise<Product[]> {
  * Shuffles an array in place using the Fisher-Yates algorithm.
  * We make a copy (...) so we don't modify the original array.
  */
-function shuffleArray(array: any[]) {
-  const newArray = [...array]; // Create a copy
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];

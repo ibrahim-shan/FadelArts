@@ -113,10 +113,10 @@ export default function ImageUploader({
           updateItem(it, { status: "done", progress: 100, url, path: key });
           try {
           } catch {}
-        } catch (e: any) {
+        } catch (e: unknown) {
           try {
           } catch {}
-          updateItem(it, { status: "error", error: String(e?.message || e) });
+          updateItem(it, { status: "error", error: String(e instanceof Error ? e.message : e) });
         }
       }),
     );

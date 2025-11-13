@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +12,6 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import ImageUploader from "@/components/uploader/image-uploader";
 // shadcn components to install for this page
 import {
   Dialog,
@@ -49,6 +47,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronsUpDown, Check, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase"; // *** 1. IMPORT SUPABASE ***
+import Image from "next/image";
 
 type Product = {
   _id: string;
@@ -144,8 +143,9 @@ export default function ProductsPage() {
       if (error) {
         console.warn("Failed to delete image from Supabase:", error.message);
       }
-    } catch (e: any) {
-      console.warn("Error during Supabase image deletion:", e.message);
+    } catch (e: unknown) {
+      if (e instanceof Error) console.warn("Error during Supabase image deletion:", e.message);
+      else console.warn("Error during Supabase image deletion:", e);
     }
   }
 
@@ -189,7 +189,7 @@ export default function ProductsPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load products");
       setItems(data.items);
       setTotal(data.total);
-    } catch (e) {
+    } catch {
       // ignore abort
     } finally {
       setLoading(false);
@@ -215,10 +215,13 @@ export default function ProductsPage() {
             credentials: "include",
           }).then((r) => r.json()),
         ]);
-        if (cs?.ok) setAllCategories(cs.items.map((c: any) => ({ _id: c._id, name: c.name })));
+        if (cs?.ok)
+          setAllCategories(
+            cs.items.map((c: { _id: string; name: string }) => ({ _id: c._id, name: c.name })),
+          );
         if (vs?.ok)
           setAllVariants(
-            vs.items.map((v: any) => ({
+            vs.items.map((v: { _id: string; name: string; values: string[] }) => ({
               _id: v._id,
               name: v.name,
               values: v.values,
@@ -235,7 +238,10 @@ export default function ProductsPage() {
         const st = await fetch(`${apiBase}/api/styles?pageSize=100`, {
           credentials: "include",
         }).then((r) => r.json());
-        if (st?.ok) setAllStyles(st.items.map((s: any) => ({ _id: s._id, name: s.name })));
+        if (st?.ok)
+          setAllStyles(
+            st.items.map((s: { _id: string; name: string }) => ({ _id: s._id, name: s.name })),
+          );
       } catch {}
     })();
   }, [apiBase]);
@@ -276,26 +282,26 @@ export default function ProductsPage() {
     setCurrentColorInput("");
   };
 
- const handleColorInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleColorInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      
+
       // Clear any previous error
-      setFormError(null); 
-      
+      setFormError(null);
+
       const newColor = currentColorInput.trim().toLowerCase();
-      
+
       if (!newColor) {
         // Do nothing if the input is empty
         return;
       }
-      
+
       // Test against the regex
       if (!hexColorRegex.test(newColor)) {
         setFormError("Invalid format. Must be a 6-digit hex code (e.g., #b5a264).");
         return; // Don't clear the input, let the user fix it
       }
-      
+
       // Check for duplicates
       if (colors.includes(newColor)) {
         setFormError("This color has already been added.");
@@ -344,97 +350,6 @@ export default function ProductsPage() {
   const handleEditExistingImageRemove = (imageUrl: string) => {
     setImages((prevImages) => prevImages.filter((url) => url !== imageUrl));
   };
-
-  async function createProduct() {
-    // Client-side required validation
-    if (!title.trim()) return setFormError("Title is required");
-    if (!artist.trim()) return setFormError("Artist is required");
-    if (!price || Number(price) <= 0) return setFormError("Price is required");
-    if (!shortDescription.trim()) return setFormError("Short description is required");
-    if (!description.trim()) return setFormError("Full description is required");
-
-    // *** 5. MODIFY createProduct TO UPLOAD FILES FIRST ***
-
-    // Use `createImageFiles` for validation
-    if (createImageFiles.length === 0) {
-      return setFormError("At least one image is required");
-    }
-    if (!year || Number.isNaN(Number(year))) return setFormError("Year is required");
-    if (!quantity || Number.isNaN(Number(quantity))) return setFormError("Quantity is required");
-    if (categories.length === 0) return setFormError("Select at least one category");
-    if (!selectedStyle) return setFormError("Style is required");
-
-    setFormError(null);
-    setLoadingAction(true);
-
-    let uploadedImageUrls: string[] = [];
-
-    const pathPrefix = `${Date.now()}`;
-    const bucket = "products";
-
-    try {
-      // 2. Upload all files from `createImageFiles`
-      const uploadPromises = createImageFiles.map(async (file, idx) => {
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const key = `${pathPrefix}/${Date.now()}_${idx}_${safeName}`;
-
-        const { error: uploadError } = await supabase.storage.from(bucket).upload(key, file, {
-          cacheControl: "3600",
-          upsert: true,
-          contentType: file.type,
-        });
-
-        if (uploadError) {
-          throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
-        }
-
-        const { data } = supabase.storage.from(bucket).getPublicUrl(key);
-        return data.publicUrl;
-      });
-
-      uploadedImageUrls = await Promise.all(uploadPromises);
-
-      // 3. All images are uploaded, now create the product in the DB
-      const res = await fetch(`${apiBase}/api/products`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          title,
-          artist,
-          price: Number(price),
-          shortDescription,
-          description,
-          images: uploadedImageUrls, // Send the new URLs
-          colors: colors,
-          categories,
-          variants,
-          styles: selectedStyle ? [selectedStyle] : [],
-          year: year ? Number(year) : undefined,
-          inventory: quantity ? Number(quantity) : undefined,
-          published: true,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        // *** ADDED THIS CLEANUP BLOCK ***
-        if (uploadedImageUrls.length > 0) {
-          await Promise.all(uploadedImageUrls.map(deleteImageFromSupabase));
-        }
-        throw new Error(data?.error || "Failed to create product in database");
-      }
-
-      // 4. Success
-      setCreateOpen(false);
-      resetCreate(); // This will clear createImageFiles
-      await fetchData();
-    } catch (e: any) {
-      setFormError(e?.message || "Failed to create product");
-    } finally {
-      setLoadingAction(false); // Hide loading state
-    }
-  }
 
   async function updateProductSubmit() {
     if (!editItem) return;
@@ -490,8 +405,9 @@ export default function ProductsPage() {
       setEditItem(null);
       resetCreate(); // Use resetCreate to clear all form state
       await fetchData();
-    } catch (e: any) {
-      setFormError(e?.message || "Failed to update product");
+    } catch (e: unknown) {
+      if (e instanceof Error) setFormError(e.message);
+      else setFormError("Failed to update product");
     } finally {
       setLoadingAction(false);
     }
@@ -521,8 +437,9 @@ export default function ProductsPage() {
       }
 
       await fetchData(); // Refresh list
-    } catch (e: any) {
-      alert(e?.message || "Failed to delete product");
+    } catch (e: unknown) {
+      if (e instanceof Error) alert(e.message);
+      else alert("Failed to delete product");
     } finally {
       setLoadingAction(false);
     }
@@ -597,7 +514,7 @@ export default function ProductsPage() {
                       size="sm"
                       onClick={() => {
                         setEditItem(p);
-                        populateFrom(p as any);
+                        populateFrom(p);
                         setEditOpen(true);
                       }}
                     >
@@ -720,16 +637,19 @@ export default function ProductsPage() {
                   disabled={loadingAction}
                 />
                 <p className="text-xs text-muted-foreground mb-4">
-                  Images will be staged here. They will be uploaded when you click "Create".
+                  Images will be staged here. They will be uploaded when you click
+                  &quot;Create&quot;.
                 </p>
                 {!!createImageFiles.length && (
                   <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                     {createImageFiles.map((file, i) => (
                       <div key={i} className="relative group">
                         <div className="relative aspect-4/3 overflow-hidden rounded border">
-                          <img
+                          <Image
                             src={URL.createObjectURL(file)}
                             alt={`Preview ${file.name}`}
+                            width={200}
+                            height={200}
                             className="w-full h-full object-cover"
                             onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
                           />
@@ -861,7 +781,7 @@ export default function ProductsPage() {
                       >
                         {color}
                         <XIcon className="ml-2 h-4 w-4" onClick={() => removeColor(color)} />
-                      </Badge >
+                      </Badge>
                     ))}
                   </div>
                   <Input
@@ -946,7 +866,7 @@ export default function ProductsPage() {
             </TabsContent>
           </Tabs>
           {/* *** 7. UPDATE DIALOG FOOTER FOR ERROR AND LOADING STATE *** */}
-        <DialogFooter>
+          <DialogFooter>
             {formError && <p className="text-destructive text-sm mr-auto">{formError}</p>}
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
@@ -986,10 +906,11 @@ export default function ProductsPage() {
                         key={i}
                         className="relative aspect-4/3 overflow-hidden rounded bg-accent/20"
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={u}
                           alt={`Image ${i + 1}`}
+                          width={200}
+                          height={200}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -1153,7 +1074,7 @@ export default function ProductsPage() {
                 </PopoverContent>
               </Popover>
             </div>
-         <div>
+            <div>
               <Label className="mb-1 block text-sm">Colors</Label>
               <div className="flex flex-wrap gap-3">
                 {colors.map((color) => (
@@ -1246,9 +1167,11 @@ export default function ProductsPage() {
                   {images.map((url) => (
                     <div key={url} className="relative group">
                       <div className="relative aspect-4/3 overflow-hidden rounded border">
-                        <img
+                        <Image
                           src={url}
                           alt="Existing product image"
+                          width={200}
+                          height={200}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -1282,9 +1205,11 @@ export default function ProductsPage() {
                   {editImageFiles.map((file, i) => (
                     <div key={i} className="relative group">
                       <div className="relative aspect-4/3 overflow-hidden rounded border">
-                        <img
+                        <Image
                           src={URL.createObjectURL(file)}
                           alt={`Preview ${file.name}`}
+                          width={200}
+                          height={200}
                           className="w-full h-full object-cover"
                           onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
                         />
@@ -1381,7 +1306,8 @@ export default function ProductsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete product?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete "{pendingDelete?.title}".
+              This action cannot be undone. This will permanently delete &quot;
+              {pendingDelete?.title}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

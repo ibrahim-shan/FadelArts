@@ -6,7 +6,7 @@ import * as React from "react";
 type RevealProps = {
   children: React.ReactNode;
   className?: string;
-  as?: keyof JSX.IntrinsicElements;
+  as?: React.ElementType;
   delay?: number;
   mode?: "inview" | "mount";
 };
@@ -28,11 +28,12 @@ export default function Reveal({
 
   // Before hydration, render plain content to avoid any hidden state
   if (!mounted) {
-    const Fallback = as as any;
+    const Fallback = as as React.ElementType;
     return <Fallback className={className}>{children}</Fallback>;
   }
 
-  const Comp = motion[as as keyof typeof motion] as any;
+  const Comp = motion[as as keyof typeof motion] as React.ElementType;
+
   const common = {
     className,
     variants,

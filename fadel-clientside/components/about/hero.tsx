@@ -25,13 +25,13 @@ export default function AboutHero() {
               </p>
               <div className="mt-6">
                 <Button asChild>
-                  <Link href="/#collections">Explore Collections</Link>
+                  <Link href="/shop">Explore Collections</Link>
                 </Button>
               </div>
             </div>
             <div className="relative rounded-xl shadow-brand-md overflow-hidden">
               <Image
-                src="/about-hero.svg"
+                src="/images/about/about-1.webp"
                 alt="Studio mood illustration"
                 width={1200}
                 height={900}
@@ -39,7 +39,7 @@ export default function AboutHero() {
                 priority
                 draggable={false}
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/20 to-transparent" />
+              <div className="pointer-events-none absolute inset-0 bg-linear-gradient-to-t from-background/20 to-transparent" />
             </div>
           </div>
         </Reveal>

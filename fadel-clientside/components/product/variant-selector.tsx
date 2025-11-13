@@ -30,7 +30,7 @@ export default function VariantSelector({
   }
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="mt-2 space-y-4">
       {variants.map((variant) => (
         <div key={variant.name}>
           <h3 className="text-sm font-medium text-muted-foreground">
@@ -50,7 +50,7 @@ export default function VariantSelector({
                   className={cn(
                     isSelected
                       ? "ring-2 ring-primary ring-offset-2"
-                      : "hover:bg-accent/50 dark:hover:text-foreground"
+                      : "hover:bg-accent/50 dark:hover:text-foreground",
                   )}
                   // 6. Call the prop function
                   onClick={() => onSelect(variant.name, value)}

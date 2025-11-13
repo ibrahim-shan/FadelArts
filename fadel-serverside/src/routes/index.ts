@@ -5,6 +5,7 @@ import auth from "./auth.route";
 import categories from "./categories.route";
 import variants from "./variants.route";
 import styles from "./styles.route";
+import settings from "./settings.route";
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use("/products", products);
 router.use("/categories", categories);
 router.use("/variants", variants);
 router.use("/styles", styles);
+router.use("/settings", settings);
 
 export default router;

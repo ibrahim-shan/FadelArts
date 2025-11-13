@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,12 @@ import { Checkbox as UICheckbox } from "@/components/ui/checkbox";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DualRangeSlider } from "@/components/ui/dual-range-slider";
+
+declare global {
+  interface Window {
+    __priceDeb__?: number;
+  }
+}
 
 type CheckboxOption = { id: string; label: string };
 type Category = { _id: string; name: string };
@@ -201,22 +207,21 @@ export default function ShopFilters() {
     setRangeMax(priceMaxBound ?? 0);
     setPriceMin(String(PRICE_MIN));
     setPriceMax(String(priceMaxBound ?? 0));
-    buildAndPush(cleared, PRICE_MIN, priceMaxBound ?? (undefined as any));
+    buildAndPush(cleared, PRICE_MIN, priceMaxBound ?? undefined);
   };
   const paramsString = urlSearch.toString();
   // Initialize state from URL on mount
   useEffect(() => {
     if (priceMaxBound === null) return;
 
-    // This check helps prevent hydrating state before filter data is loaded
+    // If we have params but no data yet, wait (prevents premature hydration)
     if (!categoriesData.length && !stylesData.length && !variantsData.length && paramsString) {
-      // If we have params but no data, wait for data
       return;
     }
 
     const params = urlSearch;
     const nextSelected: Record<string, boolean> = {};
-    const nextOpenSections: Record<string, boolean> = {}; // <-- Create a new open state object
+    const nextOpenSections: Record<string, boolean> = {};
     const readList = (key: string) => params.get(key)?.split(",").filter(Boolean) ?? [];
 
     // --- Hydrate Categories ---
@@ -225,7 +230,6 @@ export default function ShopFilters() {
       nextSelected[id] = true;
       isCategoryActive = true;
     });
-    // Set open state *only if* it's active. Otherwise, let user control it.
     if (isCategoryActive) nextOpenSections["Categories"] = true;
 
     // --- Hydrate Style ---
@@ -237,8 +241,9 @@ export default function ShopFilters() {
     if (isStyleActive) nextOpenSections["Style"] = true;
 
     // --- Hydrate Colors ---
-    readList("color").forEach((id) => (nextSelected[id] = true));
-    // (Colors is a Section, not Collapsible, so no open state needed)
+    readList("color").forEach((id) => {
+      nextSelected[id] = true;
+    });
 
     // --- Hydrate Variants ---
     variantsData.forEach((variant) => {
@@ -250,33 +255,32 @@ export default function ShopFilters() {
           isVariantActive = true;
         }
       });
-      if (isVariantActive) nextOpenSections[variant.name] = true; // Set open if active
+      if (isVariantActive) nextOpenSections[variant.name] = true;
     });
 
-    setSelected(nextSelected);
-
-    // Merge with existing open state to preserve manual toggles
-    setOpenSections((prevOpen) => ({
-      ...prevOpen, // Keep any sections the user manually opened
-      ...nextOpenSections, // Add sections that are active based on URL
-    }));
-
-    // --- Price logic (unchanged) ---
+    // --- Price logic ---
     const minRaw = params.get("minPrice");
     const maxRaw = params.get("maxPrice");
     const minP = Number(minRaw);
     const maxP = Number(maxRaw);
     const hasMin = minRaw != null && minRaw !== "" && Number.isFinite(minP);
     const hasMax = maxRaw != null && maxRaw !== "" && Number.isFinite(maxP) && maxP > 0;
+
     const newMin = hasMin ? Math.max(PRICE_MIN, Math.min(minP, priceMaxBound)) : PRICE_MIN;
     const newMax = hasMax
       ? Math.max(newMin + PRICE_STEP, Math.min(maxP, priceMaxBound))
       : priceMaxBound;
-    setRangeMin(newMin);
-    setRangeMax(newMax);
-    setPriceMin(String(newMin));
-    setPriceMax(String(newMax));
-  }, [paramsString, priceMaxBound, variantsData, categoriesData, stylesData]);
+
+    // ---- Defer all state mutations safely ----
+    startTransition(() => {
+      setSelected(nextSelected);
+      setOpenSections((prevOpen) => ({ ...prevOpen, ...nextOpenSections }));
+      setRangeMin(newMin);
+      setRangeMax(newMax);
+      setPriceMin(String(newMin));
+      setPriceMax(String(newMax));
+    });
+  }, [paramsString, priceMaxBound, variantsData, categoriesData, stylesData, urlSearch]);
 
   // Fetch global price upper bound
   useEffect(() => {
@@ -307,7 +311,7 @@ export default function ShopFilters() {
         }
       } catch {}
     })();
-  }, [apiBase]);
+  }, [apiBase, urlSearch]);
 
   // Fetch categories, styles, COLORS, and VARIANTS
   useEffect(() => {
@@ -410,8 +414,8 @@ export default function ShopFilters() {
               setRangeMax(maxV);
               setPriceMin(String(minV));
               setPriceMax(String(maxV));
-              window.clearTimeout((window as any).__priceDeb__);
-              (window as any).__priceDeb__ = window.setTimeout(() => {
+              window.clearTimeout(window.__priceDeb__);
+              window.__priceDeb__ = window.setTimeout(() => {
                 buildAndPush(selected, minV, maxV);
               }, 250);
             }}

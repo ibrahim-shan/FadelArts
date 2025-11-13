@@ -48,7 +48,7 @@ export default function CategoriesPage() {
   const [items, setItems] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
@@ -73,9 +73,9 @@ export default function CategoriesPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to load categories");
       setItems(data.items);
       setTotal(data.total);
-    } catch (e: any) {
-      if (e?.name === "AbortError") return;
-      setError(e?.message || "Error fetching categories");
+    } catch (e: unknown) {
+      if (e instanceof Error) setError(e.message);
+      else setError("Error fetching categories");
     } finally {
       setLoading(false);
     }
@@ -103,8 +103,9 @@ export default function CategoriesPage() {
       setAddOpen(false);
       resetForm();
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to create category");
+    } catch (e: unknown) {
+      if (e instanceof Error) alert(e.message);
+      else alert("Failed to create category");
     }
   }
 
@@ -123,8 +124,9 @@ export default function CategoriesPage() {
       setEditItem(null);
       resetForm();
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to update category");
+    } catch (e: unknown) {
+      if (e instanceof Error) alert(e.message);
+      else alert("Failed to update category");
     }
   }
 
@@ -138,8 +140,9 @@ export default function CategoriesPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Failed to delete");
       setPendingDelete(null);
       await fetchData();
-    } catch (e: any) {
-      alert(e?.message || "Failed to delete category");
+    } catch (e: unknown) {
+      if (e instanceof Error) alert(e.message);
+      else alert("Failed to delete category");
     }
   }
 
@@ -315,8 +318,8 @@ export default function CategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete category?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the category "
-              {pendingDelete?.name}".
+              This action cannot be undone. This will permanently delete the category &quot;
+              {pendingDelete?.name}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import bcrypt from "bcryptjs";
 import { Admin } from "../models/admin.model";
 import { env } from "../config/env";

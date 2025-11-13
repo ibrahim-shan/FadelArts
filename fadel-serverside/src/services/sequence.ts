@@ -5,7 +5,7 @@ export async function getNextSequence(key: string): Promise<number> {
     { key },
     { $inc: { seq: 1 } },
     { new: true, upsert: true },
-  ).lean();
+  );
   return c!.seq;
 }
 

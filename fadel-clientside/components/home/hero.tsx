@@ -19,7 +19,7 @@ const DEFAULT_SLIDES: Slide[] = [
   {
     src: "/images/heros/hero-1.webp",
     title: "Curated Art|For Modern Spaces",
-    cta: { label: "Explore Gallery", href: "/gallery" },
+    cta: { label: "Explore Gallery", href: "/shop" },
   },
   {
     src: "/images/heros/hero-2.webp",
@@ -29,7 +29,7 @@ const DEFAULT_SLIDES: Slide[] = [
   {
     src: "/images/heros/hero-3.webp",
     title: "Collect The|Exceptional",
-    cta: { label: "New Arrivals", href: "/gallery?sort=new" },
+    cta: { label: "New Arrivals", href: "/shop?sort=newest" },
   },
 ];
 
@@ -59,7 +59,10 @@ export function Hero({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, interval]);
 
-  const transition = useMemo(() => ({ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] as any }), []);
+  const transition = useMemo(
+    () => ({ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] as [number, number, number, number] }),
+    [],
+  );
 
   return (
     <section id={id} className="relative w-full" aria-label="Featured artwork">

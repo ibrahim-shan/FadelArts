@@ -28,9 +28,9 @@ export default function TermsPage() {
               <div>
                 <h2 id="introduction">1. Introduction</h2>
                 <p>
-                  Welcome to Fadel Art Shop. These Terms of Service ("Terms") govern your access to
-                  and use of our website, products, and services. By accessing or using the site,
-                  you agree to be bound by these Terms.
+                  Welcome to Fadel Art Shop. These Terms of Service (&quot;Terms&quot;) govern your
+                  access to and use of our website, products, and services. By accessing or using
+                  the site, you agree to be bound by these Terms.
                 </p>
               </div>
 

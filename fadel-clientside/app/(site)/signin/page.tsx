@@ -32,8 +32,8 @@ export default function SignInPage() {
       }
       const next = params.get("next") || "/dashboard";
       router.replace(next);
-    } catch (err: any) {
-      setError(err?.message || "Sign in failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
     } finally {
       setLoading(false);
     }
