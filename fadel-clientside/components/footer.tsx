@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Instagram, Facebook } from "lucide-react";
 import { SiTiktok, SiWhatsapp } from "react-icons/si";
+import Image from "next/image";
 
 // 1. Define the type for the public links
 type PublicMediaLinks = {
@@ -51,7 +52,15 @@ export default async function Footer() {
               Art is a form of expression that transcends boundaries and speaks to the depths of the
               human experience.
             </p>
-            <p className="mt-3 text-sm font-semibold text-foreground">Delivery all over Lebanon</p>
+            <div className="flex items-center justify-center gap-2 mt-8 md:justify-start">
+              <Image
+                src="/images/flag/lebanon-flag.webp"
+                alt="Fadel Art Shop"
+                width={20}
+                height={20}
+              />
+              <p className=" text-sm font-semibold text-foreground">Delivery all over Lebanon</p>
+            </div>
           </div>
 
           {/* Navigation split into two columns */}

@@ -2,32 +2,18 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import Reveal from "@/components/reveal";
+import Reveal from "../reveal";
 import { motion } from "framer-motion";
 
+// --- 1. UPDATE POST TYPE TO MATCH FETCHED DATA ---
 type Post = {
+  _id: string;
+  slug: string;
   title: string;
-  href: string;
   image: string;
 };
 
-const POSTS: Post[] = [
-  {
-    title: "Inside the Abstract: Curating Bold Expression",
-    href: "/blog/inside-the-abstract",
-    image: "/blog-1.svg",
-  },
-  {
-    title: "Minimal Forms, Maximum Calm",
-    href: "/blog/minimal-forms",
-    image: "/blog-2.svg",
-  },
-  {
-    title: "Nature Tones We Love This Season",
-    href: "/blog/nature-tones",
-    image: "/blog-3.svg",
-  },
-];
+// --- 2. REMOVE STATIC POSTS ARRAY ---
 
 function BlogCard({
   post,
@@ -39,7 +25,8 @@ function BlogCard({
   fillHeight?: boolean;
 }) {
   return (
-    <Link href={post.href} className="group">
+    // --- 3. UPDATE LINK TO USE SLUG ---
+    <Link href={`/blog/${post.slug}`} className="group">
       <motion.div
         className={(featured && fillHeight ? "h-full flex flex-col " : "") + "transform-gpu"}
         whileHover={{ y: -2 }}
@@ -104,8 +91,19 @@ function BlogCard({
   );
 }
 
-export default function BlogsNews({ id = "blogs" }: { id?: string }) {
-  const [first, second, third] = POSTS;
+// --- 4. ACCEPT 'posts' PROP ---
+export default function BlogsNews({ id = "blogs", posts = [] }: { id?: string; posts: Post[] }) {
+  // --- 5. SAFELY DESTRUCTURE POSTS ---
+  const first = posts[0];
+  const second = posts[1];
+  const third = posts[2];
+
+  // --- 6. HANDLE CASE WHERE POSTS AREN'T LOADED ---
+  if (!first) {
+    // You can return null or a loading/empty state
+    return null;
+  }
+
   return (
     <section id={id} className="py-12">
       <div className="container">
@@ -115,17 +113,17 @@ export default function BlogsNews({ id = "blogs" }: { id?: string }) {
           </h2>
         </Reveal>
 
-        {/* Mobile: stack; Desktop: two-column flex with equal column heights */}
+        {/* --- 7. ADD CONDITIONAL RENDERING --- */}
         <Reveal>
           <div className="flex flex-col md:flex-row md:items-stretch md:gap-6">
             <div className="md:w-2/3 md:flex">
               <div className="w-full h-full">
-                <BlogCard post={first} featured fillHeight />
+                {first && <BlogCard post={first} featured fillHeight />}
               </div>
             </div>
             <div className="mt-6 md:mt-0 md:w-1/3 flex flex-col gap-6">
-              <BlogCard post={second} />
-              <BlogCard post={third} />
+              {second && <BlogCard post={second} />}
+              {third && <BlogCard post={third} />}
             </div>
           </div>
         </Reveal>

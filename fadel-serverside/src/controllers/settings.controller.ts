@@ -5,24 +5,31 @@ import { Setting } from "../models/settings.model";
 import { asyncHandler } from "../utils/async";
 
 const MEDIA_KEY = "media";
+const CONTACT_KEY = "contact";
 
-// This is your existing function for the admin panel
+// --- THIS FUNCTION IS NOW FIXED ---
+// Uses findOneAndUpdate to prevent race conditions
 export const getMediaSettings = asyncHandler(async (_req: Request, res: Response) => {
-  const settings = await Setting.findOne({ key: MEDIA_KEY });
-
-  if (!settings) {
-    // If no settings exist, create and return the default empty state
-    const newSettings = await Setting.create({
-      key: MEDIA_KEY,
-      media: {
-        instagram: { url: "", isVisible: false },
-        facebook: { url: "", isVisible: false },
-        tiktok: { url: "", isVisible: false },
-        whatsapp: { url: "", isVisible: false },
+  const settings = await Setting.findOneAndUpdate(
+    { key: MEDIA_KEY },
+    {
+      $setOnInsert: {
+        key: MEDIA_KEY,
+        media: {
+          instagram: { url: "", isVisible: false },
+          facebook: { url: "", isVisible: false },
+          tiktok: { url: "", isVisible: false },
+          whatsapp: { url: "", isVisible: false },
+        },
       },
-    });
-    return res.json({ ok: true, settings: newSettings.media });
-  }
+    },
+    {
+      new: true,
+      upsert: true,
+      runValidators: true,
+      projection: { media: 1 }, // Only return the 'media' field
+    },
+  );
 
   res.json({ ok: true, settings: settings.media });
 });
@@ -39,8 +46,6 @@ export const updateMediaSettings = asyncHandler(async (req: Request, res: Respon
 
   res.json({ ok: true, settings: updatedDoc.media });
 });
-
-// --- V V V ADD THIS NEW FUNCTION V V V ---
 
 /**
  * @desc    Get ONLY visible media links for the public site
@@ -72,4 +77,63 @@ export const getPublicMediaSettings = asyncHandler(async (_req: Request, res: Re
   }
 
   res.json({ ok: true, links: publicLinks });
+});
+
+// --- THIS FUNCTION IS NOW FIXED ---
+// Uses findOneAndUpdate to prevent race conditions
+/**
+ * @desc    Get contact info settings for admin
+ * @route   GET /api/settings/contact
+ * @access  Admin
+ */
+export const getContactSettings = asyncHandler(async (_req: Request, res: Response) => {
+  const settings = await Setting.findOneAndUpdate(
+    { key: CONTACT_KEY },
+    {
+      $setOnInsert: {
+        key: CONTACT_KEY,
+        contactInfo: { email: "", phone: "", location: "", hours: "", mapEmbedUrl: "" },
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      runValidators: true,
+      projection: { contactInfo: 1 }, // Only return the 'contactInfo' field
+    },
+  );
+
+  res.json({ ok: true, settings: settings.contactInfo });
+});
+
+/**
+ * @desc    Update contact info settings
+ * @route   PUT /api/settings/contact
+ * @access  Admin
+ */
+export const updateContactSettings = asyncHandler(async (req: Request, res: Response) => {
+  const contactUpdates = req.body;
+
+  const updatedDoc = await Setting.findOneAndUpdate(
+    { key: CONTACT_KEY },
+    { $set: { contactInfo: contactUpdates } },
+    { new: true, upsert: true, runValidators: true },
+  );
+
+  res.json({ ok: true, settings: updatedDoc.contactInfo });
+});
+
+/**
+ * @desc    Get public contact info for the site
+ * @route   GET /api/settings/contact/public
+ * @access  Public
+ */
+export const getPublicContactSettings = asyncHandler(async (_req: Request, res: Response) => {
+  const settings = await Setting.findOne({ key: CONTACT_KEY });
+
+  if (!settings || !settings.contactInfo) {
+    return res.json({ ok: true, info: {} });
+  }
+
+  res.json({ ok: true, info: settings.contactInfo });
 });

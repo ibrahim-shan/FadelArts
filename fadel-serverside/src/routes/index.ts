@@ -6,6 +6,7 @@ import categories from "./categories.route";
 import variants from "./variants.route";
 import styles from "./styles.route";
 import settings from "./settings.route";
+import blogs from "./blog.route";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/categories", categories);
 router.use("/variants", variants);
 router.use("/styles", styles);
 router.use("/settings", settings);
+router.use("/blogs", blogs);
 
 export default router;

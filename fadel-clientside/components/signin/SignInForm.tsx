@@ -42,7 +42,10 @@ export function SignInForm() {
       <div className="container max-w-sm">
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-lg" style={{ fontFamily: "var(--font-heading)" }}>
+            <CardTitle
+              className="text-center text-lg"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               Admin Sign In
             </CardTitle>
             <CardDescription className="text-center">
@@ -53,11 +56,23 @@ export function SignInForm() {
             <form className="space-y-4" onSubmit={onSubmit}>
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Email</label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Password</label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
               </div>
               {error && <p className="text-destructive text-sm">{error}</p>}
               <Button type="submit" className="w-full h-10" disabled={loading}>

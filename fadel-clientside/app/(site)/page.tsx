@@ -1,16 +1,16 @@
-import { Hero } from "@/components/home/hero";
-import { ProductCard } from "@/components/product-card";
-import { Button } from "@/components/ui/button";
+import { Hero } from "../../components/home/hero";
+import { ProductCard } from "../../components/product-card";
+import { Button } from "../../components/ui/button";
 import Link from "next/link";
-import ExploreByStyle from "@/components/home/explore-by-style";
-import BestSellers from "@/components/home/best-sellers";
-import NewArtsMobile from "@/components/home/new-arts-mobile";
-import TrustBenefits from "@/components/home/trust-benefits";
-import FeaturedCollections from "@/components/home/featured-collections";
-import Testimonials from "@/components/home/testimonials";
-import BlogsNews from "@/components/home/blogs-news";
-import HashScroll from "@/components/hash-scroll";
-import Subscription from "@/components/home/subscription";
+import ExploreByStyle from "../../components/home/explore-by-style";
+import BestSellers from "../../components/home/best-sellers";
+import NewArtsMobile from "../../components/home/new-arts-mobile";
+import TrustBenefits from "../../components/home/trust-benefits";
+// import FeaturedCollections from "../../components/home/featured-collections";
+import Testimonials from "../../components/home/testimonials";
+import BlogsNews from "../../components/home/blogs-news";
+import HashScroll from "../../components/hash-scroll";
+import Subscription from "../../components/home/subscription";
 
 // Define the Style type
 type Style = {
@@ -29,6 +29,15 @@ type Product = {
   price: number;
   compareAtPrice?: number;
   images: string[];
+};
+
+// --- 1. DEFINE THE BLOG POST TYPE ---
+type BlogPost = {
+  _id: string;
+  slug: string;
+  title: string;
+  image: string;
+  // Add any other fields you need from the blog model
 };
 
 // Fetch styles data
@@ -52,7 +61,6 @@ async function getStyles(): Promise<Style[]> {
 async function getHomepageProducts(): Promise<Product[]> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   try {
-    // Fetch 8 products
     const res = await fetch(`${apiBase}/api/products?sort=newest&pageSize=8`, {
       next: { revalidate: 60 },
     });
@@ -68,7 +76,26 @@ async function getHomepageProducts(): Promise<Product[]> {
   }
 }
 
-// --- ADD THIS SHUFFLE FUNCTION ---
+// --- 2. ADD FUNCTION TO FETCH BLOG POSTS ---
+async function getBlogPosts(): Promise<BlogPost[]> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  try {
+    // Fetches 3 latest posts from the public route
+    const res = await fetch(`${apiBase}/api/blogs/public?pageSize=3`, {
+      next: { revalidate: 60 }, // Cache for 1 minute
+    });
+    if (!res.ok) {
+      console.error("Failed to fetch blogs:", res.statusText);
+      return [];
+    }
+    const data = await res.json();
+    return data.ok && Array.isArray(data.items) ? data.items : [];
+  } catch (error) {
+    console.error("Fetch error for blogs:", error);
+    return [];
+  }
+}
+
 /**
  * Shuffles an array in place using the Fisher-Yates algorithm.
  * We make a copy (...) so we don't modify the original array.
@@ -81,18 +108,14 @@ function shuffleArray<T>(array: T[]): T[] {
   }
   return newArray;
 }
-// --- END OF NEW FUNCTION ---
 
 export default async function Home() {
-  // Await both data fetches
+  // --- 3. AWAIT ALL DATA ---
   const styles = await getStyles();
-  const allProducts = await getHomepageProducts(); // <-- Fetches 8
+  const allProducts = await getHomepageProducts();
+  const blogPosts = await getBlogPosts(); // <-- Fetch blog posts
 
-  // "New Arts" gets the first 4 products (newest)
   const newArts = allProducts.slice(0, 4);
-
-  // --- THIS IS THE FIX ---
-  // "More to Explore" gets ALL 8 products, but shuffled
   const randomProducts = shuffleArray(allProducts);
 
   return (
@@ -136,14 +159,15 @@ export default async function Home() {
 
       <ExploreByStyle id="styles" styles={styles} />
 
-      {/* --- THIS IS THE FIX --- */}
-      {/* Pass the shuffled 8 products to "More to Explore" */}
       <BestSellers id="best-sellers" products={randomProducts} />
 
       <TrustBenefits />
-      <FeaturedCollections id="collections" />
+      {/* <FeaturedCollections id="collections" /> */}
       <Testimonials id="testimonials" />
-      <BlogsNews id="blogs" />
+
+      {/* --- 4. PASS FETCHED POSTS TO THE COMPONENT --- */}
+      <BlogsNews id="blogs" posts={blogPosts} />
+
       <Subscription />
     </main>
   );

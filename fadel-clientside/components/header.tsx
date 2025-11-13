@@ -227,7 +227,8 @@ export default function Header() {
   const links: NavLink[] = [
     { label: "About", href: "/about" },
     { label: "Shop", href: "/shop" },
-    { label: "Collections", scrollTo: "collections" },
+    { label: "New Arts", scrollTo: "new-arts" },
+    // { label: "Collections", scrollTo: "collections" },
     { label: "Contact", href: "/contact" },
   ];
 
