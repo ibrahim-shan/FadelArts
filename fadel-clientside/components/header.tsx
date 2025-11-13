@@ -26,14 +26,22 @@ interface Product {
 
 // 5. Add Click-Outside Hook
 function useOnClickOutside(
-  ref: React.RefObject<HTMLDivElement | null>, // <-- Allow null here
+  ref: React.RefObject<HTMLDivElement | null>,
   handler: (event: MouseEvent | TouchEvent) => void,
+  excludeSelectors: string[] = [], // Add this parameter
 ) {
   useEffect(() => {
     const listener = (event: MouseEvent | TouchEvent) => {
       if (!ref.current || ref.current.contains(event.target as Node)) {
         return;
       }
+
+      // Check if click is on excluded elements
+      const target = event.target as Element;
+      if (excludeSelectors.some((selector) => target.closest(selector))) {
+        return;
+      }
+
       handler(event);
     };
     document.addEventListener("mousedown", listener);
@@ -42,7 +50,7 @@ function useOnClickOutside(
       document.removeEventListener("mousedown", listener);
       document.removeEventListener("touchstart", listener);
     };
-  }, [ref, handler]);
+  }, [ref, handler, excludeSelectors]);
 }
 
 // 6. Create the new ProductSearch component
@@ -90,7 +98,7 @@ function ProductSearch({ onClose }: { onClose: () => void }) {
   }, [query, apiBase]);
 
   // Handle closing search when clicking outside
-  useOnClickOutside(searchRef, onClose);
+  useOnClickOutside(searchRef, onClose, [".search-toggle"]);
 
   return (
     <div ref={searchRef} className="relative w-full">
@@ -308,11 +316,12 @@ export default function Header() {
         <div className="flex items-center gap-2">
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setSearchOpen((v) => !v);
-              setOpen(false);
+              if (open) setOpen(false);
             }}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-full hover:bg-muted text-foreground transition-base"
+            className="search-toggle h-9 w-9 inline-flex items-center justify-center rounded-full hover:bg-muted text-foreground transition-base" // Added 'search-toggle' class
             aria-label="Search"
           >
             <Search className="h-5 w-5" />
@@ -328,7 +337,10 @@ export default function Header() {
           {/* Mobile menu button (after toggle) */}
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setOpen(true); // Correct: open mobile menu
+              setSearchOpen(false); // Close search panel if open
+            }}
             className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full hover:bg-muted text-foreground transition-base"
             aria-label="Open menu"
           >
@@ -377,11 +389,6 @@ export default function Header() {
                 >
                   <X className="h-5 w-5" />
                 </button>
-              </div>
-
-              {/* 8. Added ProductSearch to mobile menu */}
-              <div className="mt-6">
-                <ProductSearch onClose={() => setOpen(false)} />
               </div>
 
               <div className="mt-10 flex-1 grid place-items-center">
