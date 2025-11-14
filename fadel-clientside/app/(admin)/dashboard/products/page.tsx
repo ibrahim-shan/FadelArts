@@ -62,11 +62,25 @@ type Product = {
   shortDescription?: string;
   description?: string;
   categories?: string[];
-  variants?: { name: string; values: string[] }[];
+  options?: { name: string; values: string[] }[]; // Renamed from variants
+  productVariants?: {
+    // Added
+    _id: string;
+    options: { name: string; value: string }[];
+    price: number;
+    inventory?: number;
+  }[];
   styles?: string[];
   sku?: string;
   barcode?: string;
   year?: number;
+};
+
+type GeneratedVariant = {
+  id: string; // Temporary ID for React state key
+  options: { name: string; value: string }[];
+  price: string;
+  inventory: string;
 };
 
 const hexColorRegex = /^#[0-9a-f]{6}$/;
@@ -102,6 +116,9 @@ export default function ProductsPage() {
 
   // *** 2. ADD NEW STATE FOR STAGED FILES (FOR CREATE DIALOG) ***
   const [createImageFiles, setCreateImageFiles] = useState<File[]>([]);
+
+  const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
+  const [, setCreateTab] = useState("details");
 
   const [categories, setCategories] = useState<string[]>([]);
   const [variants, setVariants] = useState<{ name: string; values: string[] }[]>([]);
@@ -253,16 +270,18 @@ export default function ProductsPage() {
     setShortDescription("");
     setDescription("");
     setImages([]);
-    setCreateImageFiles([]); // *** 3. RESET STAGED FILES ***
+    setCreateImageFiles([]);
     setEditImageFiles([]);
     setCategories([]);
-    setVariants([]);
+    setVariants([]); // This is the state for selected options
+    setGeneratedVariants([]); // Reset generated variants
     setYear("");
     setQuantity("");
     setFormError(null);
     setSelectedStyle("");
     setColors([]);
     setCurrentColorInput("");
+    setCreateTab("details");
   };
 
   const populateFrom = (p: Product) => {
@@ -273,7 +292,17 @@ export default function ProductsPage() {
     setDescription(p.description ?? "");
     setImages(Array.isArray(p.images) ? p.images : []);
     setCategories(Array.isArray(p.categories) ? p.categories : []);
-    setVariants(Array.isArray(p.variants) ? p.variants : []);
+    // Use the `options` field to populate the `variants` state (which holds selected options)
+    setVariants(Array.isArray(p.options) ? p.options : []);
+    // Populate the generated variants list from the product data
+    setGeneratedVariants(
+      (p.productVariants || []).map((pv) => ({
+        id: pv._id, // Use the real ID from the DB
+        options: pv.options,
+        price: String(pv.price),
+        inventory: String(pv.inventory ?? ""),
+      })),
+    );
     setSelectedStyle(Array.isArray(p.styles) && p.styles.length ? p.styles[0] : "");
     setColors(Array.isArray(p.colors) ? p.colors : []);
     setYear(typeof p.year === "number" ? String(p.year) : "");
@@ -281,6 +310,131 @@ export default function ProductsPage() {
     setEditImageFiles([]);
     setCurrentColorInput("");
   };
+
+  const getCombinations = (options: { name: string; values: string[] }[]) => {
+    if (!options || options.length === 0) {
+      return [];
+    }
+
+    const [head, ...tail] = options.filter((opt) => opt.values.length > 0); // Ignore empty option sets
+    if (!head) {
+      return [];
+    }
+
+    const tailCombinations = getCombinations(tail);
+
+    const combinations: { name: string; value: string }[][] = [];
+    for (const value of head.values) {
+      const option = { name: head.name, value: value };
+      if (tailCombinations.length === 0) {
+        combinations.push([option]);
+      } else {
+        for (const combo of tailCombinations) {
+          combinations.push([option, ...combo]);
+        }
+      }
+    }
+    return combinations;
+  };
+
+  const handleGenerateVariants = () => {
+    // `variants` state holds the selected options, e.g., [{ name: "Size", values: ["S", "M"] }]
+    const combinations = getCombinations(variants);
+
+    // Default to base price/quantity
+    const defaultPrice = price || "0";
+    const defaultQty = quantity || "0";
+
+    const newGeneratedVariants = combinations.map((options, i) => ({
+      id: `temp-${Date.now()}-${i}`, // Temporary ID for React key
+      options: options,
+      price: defaultPrice,
+      inventory: defaultQty,
+    }));
+
+    setGeneratedVariants(newGeneratedVariants);
+    setFormError(null);
+    setCreateTab("combinations");
+  };
+
+  const handleVariantChange = (index: number, field: "price" | "inventory", value: string) => {
+    setGeneratedVariants((current) => {
+      const newVariants = [...current];
+      const variantToUpdate = { ...newVariants[index] };
+
+      if (field === "price") {
+        variantToUpdate.price = value;
+      } else if (field === "inventory") {
+        variantToUpdate.inventory = value;
+      }
+
+      newVariants[index] = variantToUpdate;
+      return newVariants;
+    });
+  };
+
+  async function createProductSubmit() {
+    setLoadingAction(true);
+    setFormError(null);
+    let uploadedImageUrls: string[] = [];
+
+    try {
+      // 1. Upload staged files
+      uploadedImageUrls = await uploadImages(createImageFiles, `${Date.now()}`);
+      if (!uploadedImageUrls.length) {
+        throw new Error("At least one image is required.");
+      }
+
+      // 2. Prepare payload
+      const payload = {
+        title,
+        artist,
+        price: Number(price),
+        colors: colors,
+        shortDescription,
+        description,
+        images: uploadedImageUrls,
+        categories,
+        options: variants, // The selected options
+        productVariants: generatedVariants.map((v) => ({
+          // The generated combinations
+          options: v.options,
+          price: Number(v.price),
+          inventory: v.inventory ? Number(v.inventory) : 0,
+        })),
+        styles: selectedStyle ? [selectedStyle] : [],
+        year: year ? Number(year) : undefined,
+        inventory: quantity ? Number(quantity) : 0, // Base inventory
+      };
+
+      // 3. Send to API
+      const res = await fetch(`${apiBase}/api/products`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        // API create failed, clean up the images we just uploaded
+        if (uploadedImageUrls.length > 0) {
+          await Promise.all(uploadedImageUrls.map(deleteImageFromSupabase));
+        }
+        throw new Error(data?.error || "Failed to create product");
+      }
+
+      // 4. Success
+      setCreateOpen(false);
+      resetCreate();
+      await fetchData();
+    } catch (e: unknown) {
+      if (e instanceof Error) setFormError(e.message);
+      else setFormError("Failed to create product");
+    } finally {
+      setLoadingAction(false);
+    }
+  }
 
   const handleColorInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -361,28 +515,38 @@ export default function ProductsPage() {
 
     try {
       // 1. Upload any new staged files
-      newUploadedUrls = await uploadImages(editImageFiles, `${Date.now()}`);
+      newUploadedUrls = await uploadImages(editImageFiles, `${editItem.slug || Date.now()}`);
 
       // 2. Final list is existing URLs (from state) + new URLs
       const finalImageUrls = [...images, ...newUploadedUrls];
+
+      // Prepare payload
+      const payload = {
+        title,
+        artist,
+        price: Number(price),
+        colors: colors,
+        shortDescription,
+        description,
+        images: finalImageUrls,
+        categories,
+        options: variants, // The selected options
+        productVariants: generatedVariants.map((v) => ({
+          // The generated combinations
+          options: v.options,
+          price: Number(v.price),
+          inventory: v.inventory ? Number(v.inventory) : 0,
+        })),
+        styles: selectedStyle ? [selectedStyle] : [],
+        year: year ? Number(year) : undefined,
+        inventory: quantity ? Number(quantity) : undefined, // Base inventory
+      };
+
       const res = await fetch(`${apiBase}/api/products/${editItem._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          title,
-          artist,
-          price: Number(price),
-          colors: colors,
-          shortDescription,
-          description,
-          images: finalImageUrls,
-          categories,
-          variants,
-          styles: selectedStyle ? [selectedStyle] : [],
-          year: year ? Number(year) : undefined,
-          inventory: quantity ? Number(quantity) : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -395,7 +559,6 @@ export default function ProductsPage() {
       }
 
       // 3. DB update was successful, clean up old images that were removed
-      // Find URLs that were in the original list but are NOT in the final list
       const imagesToDelete = oldImageUrls.filter((url) => !finalImageUrls.includes(url));
       if (imagesToDelete.length > 0) {
         await Promise.all(imagesToDelete.map(deleteImageFromSupabase));
@@ -403,7 +566,7 @@ export default function ProductsPage() {
 
       setEditOpen(false);
       setEditItem(null);
-      resetCreate(); // Use resetCreate to clear all form state
+      resetCreate();
       await fetchData();
     } catch (e: unknown) {
       if (e instanceof Error) setFormError(e.message);
@@ -571,7 +734,7 @@ export default function ProductsPage() {
           setCreateOpen(v);
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>New Product</DialogTitle>
             <DialogDescription>Here You Can Create New Product</DialogDescription>
@@ -580,11 +743,14 @@ export default function ProductsPage() {
             defaultValue="details"
             className="w-full max-h-[70vh] overflow-y-auto pr-1 data-lenis-prevent data-lenis-prevent-wheel data-lenis-prevent-touch"
           >
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="images">Images</TabsTrigger>
               <TabsTrigger value="info">Information</TabsTrigger>
               <TabsTrigger value="org">Organization</TabsTrigger>
+              <TabsTrigger value="combinations" disabled={!variants.length}>
+                Combinations
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="pt-4">
@@ -862,6 +1028,86 @@ export default function ProductsPage() {
                     })}
                   </div>
                 </div>
+                <div className="mt-6 pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={handleGenerateVariants}
+                    disabled={variants.length === 0}
+                  >
+                    Generate {getCombinations(variants).length || ""} Combinations
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Click this after selecting all your variant options (like sizes and colors) to
+                    create purchasable combinations.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="combinations" className="pt-4">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <Label>Generated Combinations</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Set a specific price and inventory for each combination.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateVariants}
+                  >
+                    Re-generate
+                  </Button>
+                </div>
+
+                {generatedVariants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No combinations generated. Go to the &quot;Organization&quot; tab to select variants and
+                    click &quot;Generate&quot;.
+                  </p>
+                ) : (
+                  <div className="space-y-3 rounded-md border max-h-[400px] overflow-y-auto">
+                    {/* Header */}
+                    <div className="grid grid-cols-4 gap-3 items-center p-4 bg-muted/50 rounded-t-md">
+                      <Label className="col-span-2">Variant</Label>
+                      <Label className="col-span-1">Price</Label>
+                      <Label className="col-span-1">Quantity</Label>
+                    </div>
+                    {/* List */}
+                    <div className="p-4 space-y-3">
+                      {generatedVariants.map((variant, index) => (
+                        <div key={variant.id} className="grid grid-cols-4 gap-3 items-center">
+                          <div className="col-span-2">
+                            <span className="text-sm font-medium">
+                              {variant.options.map((o) => o.value).join(" / ")}
+                            </span>
+                          </div>
+                          <div className="col-span-1">
+                            <Input
+                              type="number"
+                              placeholder={`$${price || "0"}`}
+                              value={variant.price}
+                              onChange={(e) => handleVariantChange(index, "price", e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <Input
+                              type="number"
+                              placeholder={`${quantity || "0"}`}
+                              value={variant.inventory}
+                              onChange={(e) =>
+                                handleVariantChange(index, "inventory", e.target.value)
+                              }
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -871,8 +1117,8 @@ export default function ProductsPage() {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={updateProductSubmit} disabled={loadingAction}>
-              {loadingAction ? "Saving..." : "Save changes"}
+            <Button onClick={createProductSubmit} disabled={loadingAction}>
+              {loadingAction ? "Creating..." : "Create Product"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -982,14 +1228,14 @@ export default function ProductsPage() {
                     </div>
                   </div>
                 )}
-                {Array.isArray(viewItem.variants) && viewItem.variants.length > 0 && (
+                {Array.isArray(viewItem.options) && viewItem.options.length > 0 && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Variants:</span>
                     <div className="mt-1 space-y-1">
-                      {viewItem.variants.map((v) => (
-                        <div key={v.name}>
-                          <span className="font-medium">{v.name}:</span>{" "}
-                          <span className="text-muted-foreground">{v.values.join(", ")}</span>
+                      {viewItem.options.map((opt) => (
+                        <div key={opt.name}>
+                          <span className="font-medium">{opt.name}:</span>{" "}
+                          <span className="text-muted-foreground">{opt.values.join(", ")}</span>
                         </div>
                       ))}
                     </div>
@@ -1286,6 +1532,72 @@ export default function ProductsPage() {
                   );
                 })}
               </div>
+            </div>
+
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <Label>Edit Combinations</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Update prices or regenerate after adjusting variant selections.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={generatedVariants.length ? "outline" : "default"}
+                  size="sm"
+                  onClick={handleGenerateVariants}
+                  disabled={!variants.length}
+                >
+                  {generatedVariants.length
+                    ? "Re-generate"
+                    : `Generate ${getCombinations(variants).length || ""} Combinations`}
+                </Button>
+              </div>
+
+              {generatedVariants.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No combinations yet. Select variant values above and click Generate to create the
+                  purchasable combinations.
+                </p>
+              ) : (
+                <div className="space-y-3 rounded-md border max-h-[400px] overflow-y-auto">
+                  <div className="grid grid-cols-4 gap-3 items-center p-4 bg-muted/50 rounded-t-md">
+                    <Label className="col-span-2">Variant</Label>
+                    <Label className="col-span-1">Price</Label>
+                    <Label className="col-span-1">Quantity</Label>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {generatedVariants.map((variant, index) => (
+                      <div key={variant.id} className="grid grid-cols-4 gap-3 items-center">
+                        <div className="col-span-2">
+                          <span className="text-sm font-medium">
+                            {variant.options.map((o) => o.value).join(" / ")}
+                          </span>
+                        </div>
+                        <div className="col-span-1">
+                          <Input
+                            type="number"
+                            placeholder={`$${price || "0"}`}
+                            value={variant.price}
+                            onChange={(e) => handleVariantChange(index, "price", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <Input
+                            type="number"
+                            placeholder={`${quantity || "0"}`}
+                            value={variant.inventory}
+                            onChange={(e) =>
+                              handleVariantChange(index, "inventory", e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

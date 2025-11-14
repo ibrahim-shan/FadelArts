@@ -54,18 +54,24 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
     filter.price = price;
   }
 
-  const variantDocs = await Variant.find().select("slug").lean();
-  const variantSlugs = variantDocs.map((v) => v.slug);
+  const variantDocs = await Variant.find().select("slug name").lean();
+  const slugToName = new Map<string, string>();
+  for (const v of variantDocs) {
+    if (v.slug && v.name) {
+      slugToName.set(v.slug, v.name);
+    }
+  }
   const variantFilters: Record<string, unknown>[] = [];
 
   for (const key in req.query) {
-    if (variantSlugs.includes(key)) {
+    const variantName = slugToName.get(key);
+    if (variantName) {
       const value = req.query[key];
       if (typeof value === "string" && value.length > 0) {
         const values = value.split(",");
         variantFilters.push({
-          variants: {
-            $elemMatch: { slug: key, values: { $in: values } },
+          options: {
+            $elemMatch: { name: variantName, values: { $in: values } },
           },
         });
       }
@@ -73,7 +79,10 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
   }
 
   if (variantFilters.length > 0) {
-    filter.$and = variantFilters;
+    const existingAnd = Array.isArray(filter.$and)
+      ? (filter.$and as Record<string, unknown>[])
+      : [];
+    filter.$and = [...existingAnd, ...variantFilters];
   }
 
   let sortSpec: Record<string, 1 | -1> = { createdAt: -1 };
@@ -132,6 +141,8 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     inventory,
     published,
     variants,
+    options,
+    productVariants,
   } = body;
 
   if (!title || typeof price === "undefined") {
@@ -166,6 +177,9 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     return res.status(400).json({ ok: false, error: "Select at least one category" });
   }
 
+  const normalizedOptions = normalizeProductOptionsInput((options ?? variants) as unknown);
+  const normalizedProductVariants = normalizeProductCombinationsInput(productVariants);
+
   const seq = await getNextSequence("product");
   const autoSku = formatSku(seq);
   const autoBarcode = formatBarcodeFromSeq(seq);
@@ -195,7 +209,8 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     published: typeof published === "boolean" ? published : true,
     sku: autoSku,
     barcode: autoBarcode,
-    ...(variants ? { variants } : {}),
+    options: normalizedOptions,
+    productVariants: normalizedProductVariants,
   });
 
   res.status(201).json({ ok: true, product: doc });
@@ -204,6 +219,15 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
 export const updateProduct = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
   const update = req.body as Record<string, unknown>;
+
+  if ("options" in update || "variants" in update) {
+    const nextOptionsInput = "options" in update ? update.options : update.variants;
+    update.options = normalizeProductOptionsInput(nextOptionsInput);
+    delete update.variants;
+  }
+  if ("productVariants" in update) {
+    update.productVariants = normalizeProductCombinationsInput(update.productVariants);
+  }
 
   const existingProduct = await Product.findById(id);
   if (!existingProduct) {
@@ -295,3 +319,95 @@ export const getPriceRange = asyncHandler(async (_req: Request, res: Response) =
   const max = typeof maxDoc?.price === "number" ? maxDoc.price : 0;
   res.json({ ok: true, min, max, actualMin: typeof minDoc?.price === "number" ? minDoc.price : 0 });
 });
+
+type ProductOption = NonNullable<ProductDoc["options"]>[number];
+type ProductCombination = NonNullable<ProductDoc["productVariants"]>[number];
+
+function normalizeProductOptionsInput(input: unknown): NonNullable<ProductDoc["options"]> {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const normalized: ProductOption[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const raw = item as { name?: unknown; slug?: unknown; values?: unknown };
+    const nameSource =
+      typeof raw.name === "string" ? raw.name : typeof raw.slug === "string" ? raw.slug : "";
+    const name = nameSource.trim();
+    if (!name) {
+      continue;
+    }
+    const valuesSource = Array.isArray(raw.values) ? raw.values : [];
+    const values = valuesSource
+      .map((val) => (typeof val === "string" ? val.trim() : ""))
+      .filter((val) => val.length > 0);
+    if (!values.length) {
+      continue;
+    }
+    normalized.push({ name, values });
+  }
+  return normalized;
+}
+
+function normalizeProductCombinationsInput(
+  input: unknown,
+): NonNullable<ProductDoc["productVariants"]> {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const normalized: ProductCombination[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const raw = item as {
+      options?: unknown;
+      price?: unknown;
+      inventory?: unknown;
+      sku?: unknown;
+    };
+    const optionPairs = Array.isArray(raw.options)
+      ? raw.options
+          .map((option) => {
+            if (!option || typeof option !== "object") {
+              return null;
+            }
+            const opt = option as { name?: unknown; value?: unknown };
+            const name = typeof opt.name === "string" ? opt.name.trim() : "";
+            const value = typeof opt.value === "string" ? opt.value.trim() : "";
+            if (!name || !value) {
+              return null;
+            }
+            return { name, value };
+          })
+          .filter((opt): opt is NonNullable<ProductCombination["options"]>[number] => Boolean(opt))
+      : [];
+    if (!optionPairs.length) {
+      continue;
+    }
+
+    const price = Number(raw.price);
+    if (Number.isNaN(price) || price < 0) {
+      continue;
+    }
+
+    const combination: ProductCombination = {
+      options: optionPairs,
+      price,
+    };
+
+    if (raw.inventory !== undefined) {
+      const inventoryNum = Number(raw.inventory);
+      combination.inventory = Number.isNaN(inventoryNum) ? 0 : inventoryNum;
+    }
+
+    if (typeof raw.sku === "string" && raw.sku.trim()) {
+      combination.sku = raw.sku.trim();
+    }
+
+    normalized.push(combination);
+  }
+  return normalized;
+}

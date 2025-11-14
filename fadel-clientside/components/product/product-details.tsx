@@ -27,7 +27,13 @@ interface Product {
   colors?: string[];
   inventory?: number;
   published?: boolean;
-  variants?: { name: string; values: string[] }[];
+  options?: { name: string; values: string[] }[];
+  productVariants?: {
+    _id?: string;
+    options: { name: string; value: string }[];
+    price: number;
+    inventory?: number;
+  }[];
 }
 
 export default function ProductDetailsClient({
@@ -47,7 +53,8 @@ export default function ProductDetailsClient({
     compareAtPrice,
     shortDescription,
     description,
-    variants = [],
+    options = [],
+    productVariants = [],
   } = product;
 
   // 1. State is "lifted" to this parent component
@@ -61,7 +68,24 @@ export default function ProductDetailsClient({
   };
 
   // 2. Logic to check if all variants are selected
-  const allVariantsSelected = variants.length === Object.keys(selectedValues).length;
+  const activeOptions = options.filter((opt) => Array.isArray(opt.values) && opt.values.length > 0);
+  const requiresSelection = activeOptions.length > 0;
+  const allVariantsSelected =
+    !requiresSelection || activeOptions.length === Object.keys(selectedValues).length;
+
+  const matchedCombination =
+    requiresSelection && allVariantsSelected && productVariants.length
+      ? productVariants.find((combo) => {
+          if (!Array.isArray(combo.options) || combo.options.length !== activeOptions.length) {
+            return false;
+          }
+          return combo.options.every(
+            (opt) => selectedValues[opt.name] && selectedValues[opt.name] === opt.value,
+          );
+        })
+      : undefined;
+
+  const displayPrice = matchedCombination?.price ?? price;
 
   // 3. Build the WhatsApp message with selected variants
   // ... (inside the ProductDetailsClient component) ...
@@ -117,7 +141,7 @@ export default function ProductDetailsClient({
 
       {/* Price Display */}
       <div className="mt-4 flex items-baseline gap-2">
-        <p className="text-xl font-semibold">${price}</p>
+        <p className="text-xl font-semibold">${displayPrice}</p>
         {compareAtPrice && (
           <p className="text-lg text-muted-foreground line-through">${compareAtPrice}</p>
         )}
@@ -127,12 +151,12 @@ export default function ProductDetailsClient({
         {shortDescription || description}
       </p>
 
-      {!allVariantsSelected && (
+      {requiresSelection && !allVariantsSelected && (
         <p className="mt-6 text-xs text-accent font-bold">Please select all options to order.</p>
       )}
       {/* 4. Pass state and handler down to the (now controlled) selector */}
       <VariantSelector
-        variants={variants}
+        variants={activeOptions}
         selectedValues={selectedValues}
         onSelect={handleSelect}
       />
@@ -145,15 +169,15 @@ export default function ProductDetailsClient({
           asChild
           className="h-11 px-6"
           // 6. Add the disabled logic
-          disabled={!allVariantsSelected}
+          disabled={requiresSelection && !allVariantsSelected}
         >
           <a
-            href={allVariantsSelected ? buildWhatsAppMessage() : undefined}
+            href={!requiresSelection || allVariantsSelected ? buildWhatsAppMessage() : undefined}
             target="_blank"
             rel="noopener noreferrer"
             // Prevent clicking if disabled
-            onClick={(e) => !allVariantsSelected && e.preventDefault()}
-            aria-disabled={!allVariantsSelected}
+            onClick={(e) => requiresSelection && !allVariantsSelected && e.preventDefault()}
+            aria-disabled={requiresSelection && !allVariantsSelected}
           >
             <FaWhatsapp />
             Order Now

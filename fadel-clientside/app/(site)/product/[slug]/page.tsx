@@ -34,7 +34,13 @@ interface Product {
   colors?: string[];
   inventory?: number;
   published?: boolean;
-  variants?: { name: string; values: string[] }[];
+  options?: { name: string; values: string[] }[];
+  productVariants?: {
+    _id?: string;
+    options: { name: string; value: string }[];
+    price: number;
+    inventory?: number;
+  }[];
 }
 
 async function getContactInfo(): Promise<ContactInfo> {
